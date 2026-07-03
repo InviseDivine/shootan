@@ -1,0 +1,45 @@
+cmake_minimum_required(VERSION 3.10)
+project(shooter)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
+
+include(${CMAKE_SOURCE_DIR}/cmake/CPM.cmake)
+
+CPMAddPackage("gh:raysan5/raylib#6.0")
+CPMAddPackage("gh:zpl-c/enet#v2.6.5")
+
+file(GLOB Client
+    ${CMAKE_SOURCE_DIR}/src/*.cpp
+)
+
+file(GLOB Server
+    ${CMAKE_SOURCE_DIR}/src/server/*.cpp
+)
+
+file(GLOB Shared
+    ${CMAKE_SOURCE_DIR}/src/shared/*.cpp
+)
+
+add_executable(${PROJECT_NAME} ${Client} ${Shared})
+add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static)
+target_include_directories(${PROJECT_NAME} PUBLIC
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/shared
+
+)
+
+target_link_libraries(${PROJECT_NAME}-server PUBLIC raylib enet_static)
+target_include_directories(${PROJECT_NAME}-server PUBLIC
+    ${CMAKE_SOURCE_DIR}/src/server
+    ${CMAKE_SOURCE_DIR}/src/shared
+)
+
+add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_SOURCE_DIR}/assets"
+            "$<TARGET_FILE_DIR:${PROJECT_NAME}>/assets"
+)
