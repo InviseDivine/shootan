@@ -53,9 +53,23 @@ void Game::init(std::string nickname) {
     }
 }
 void Game::update() {
+    auto width = GetScreenWidth();
+    auto height = GetScreenHeight();
+
+    m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };
+    m_camera.target = Vector2 {m_player.x, m_player.y};
+
+    
+    Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
+    Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
+
+    if (max.x < width) m_camera.offset.x = width - (max.x - (float)width/2);
+    if (max.y < height) m_camera.offset.y = height - (max.y - (float)height/2);
+    if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
+    if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
+
     m_level.update();
 
-    m_camera.target = Vector2 {m_player.x, m_player.y};
 
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         std::cout << "test" << std::endl;
