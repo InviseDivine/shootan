@@ -32,4 +32,5 @@ public:
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
     std::vector<Bullet> m_bullets;
+    std::vector<Collectible> m_collectiblies;
 };

@@ -235,6 +235,35 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             
             break;  
         }
+
+        case UPDATEWEAPON: {
+            std::cout << "upd" << std::endl;
+            
+            auto weaponID = *(uint8_t*)bytes;
+            bytes++;
+            
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+
+            if (id == game.getMyId()) {
+                game.setMyWeapon(weaponID);
+            } else {
+                game.getPlayers().at(id).currentWeapon = weaponID;
+            }
+
+            break;
+        }
+
+        case ADDWEAPON: {
+            std::cout << "add" << std::endl;
+
+            auto weaponID = *(uint8_t*)bytes;
+            bytes++;
+
+            game.addWeapon(weaponID);
+            
+            break;
+        }
         default: break;
     }
 }

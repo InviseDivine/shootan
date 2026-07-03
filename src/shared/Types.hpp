@@ -3,9 +3,10 @@
 #include <string>
 #include <cstdint>
 #include <array>
+#include <vector>
 
 #define HEADER_SIZE 1
-#define WORLD_SIZE 256
+#define WORLD_SIZE 64
 #define TICKS 60
 
 struct RVector2 {
@@ -50,11 +51,19 @@ enum Weapons {
 };
 
 enum Collectibles {
-    NONE = 0,
-    GUN_COLLECT,
+    GUN_COLLECT = 0,
     SHOTGUN_COLLECT,
     SNIPER_COLLECT,
-    MEDKIT
+    MEDKIT,
+
+    COLLECTIBLIES_COUNT
+};
+
+struct Collectible {
+    RVector2 pos;
+    Collectibles type;
+
+    float respawnTime;
 };
 
 struct Player {
@@ -64,12 +73,13 @@ struct Player {
     int hp;
 
     uint8_t currentWeapon;
-    std::array<uint8_t, WEAPONS_COUNT> m_inventory;
-
+    // std::array<uint8_t, WEAPONS_COUNT> inventory;
+    std::vector<uint8_t> inventory;
     RVector2 speed;
 
     bool onGround;
 
+    int score;  
 };
 
 struct Bullet {

@@ -4,6 +4,7 @@
 #include <Types.hpp>
 #include <vector>
 #include <array>
+#include <map>
 
 class Level {
 public:
@@ -26,6 +27,7 @@ public:
     int bulletSize() { return m_bullets.size(); }
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
+    
     std::vector<Bullet> m_bullets;
-    std::vector<Collectibles> m_collectibles;
+    std::vector<Collectible> m_collectibles;
 };

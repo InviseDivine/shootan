@@ -34,7 +34,7 @@ void Client::packetReceived(ENetPacket* packet) {
         printf("Nickname: %s \n", nickname);    
 
         float x = 1;
-        float y = 63;
+        float y = 62;
 
         auto newPlayerSize = HEADER_SIZE + nicknameLen + sizeof(float) * 2 + sizeof(uint32_t);
         auto newPlayerPacket = new char[newPlayerSize];
@@ -53,7 +53,6 @@ void Client::packetReceived(ENetPacket* packet) {
         *(uint32_t*)(newPlayerPacket + newPlrIndex) = m_peer->connectID;
         newPlrIndex += 4;
 
-        std::cout << "Id: " << m_peer->connectID << std::endl;
         // nickname
         memcpy(newPlayerPacket + (newPlayerSize - nicknameLen), bytes, nicknameLen);
 
@@ -65,9 +64,6 @@ void Client::packetReceived(ENetPacket* packet) {
         auto playersPacket = new char[playerPacketSize];
 
         playersPacket[0] = Header::AUTH;
-        
-        std::cout << clientsCount << std::endl;
-
         playersPacket[1] = (uint8_t)(srv.getClients().size() - 1);
         auto packetIndex = 2;
 
@@ -98,9 +94,18 @@ void Client::packetReceived(ENetPacket* packet) {
 
         sendPacketTo(playersPacket, playerPacketSize);
 
+        // auto weaponShotgun = new char[HEADER_SIZE + 1];
+        // weaponShotgun[0] = ADDWEAPON;
+        // weaponShotgun[1] = SNIPER_RIFLE;
+
+        // m_player.inventory.push_back(SNIPER_RIFLE);
+
+        // sendPacketTo(weaponShotgun, 2);
+
         m_loggedIn = true;
         delete[] playersPacket;
         delete[] newPlayerPacket;
+        // delete[] weaponShotgun;
     } else { 
         switch (header) {
             case MOVE: {
@@ -165,6 +170,26 @@ void Client::packetReceived(ENetPacket* packet) {
                 delete [] addBulletPacket;
                 break;
             };
+            case UPDATEWEAPON: {
+                auto index = *(uint8_t*)bytes;
+
+                if (index > m_player.inventory.size() || index > WEAPONS_COUNT) {
+                    return;
+                }
+
+                m_player.currentWeapon = index;
+                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID)];
+
+                updateWeapon[0] = UPDATEWEAPON;
+                updateWeapon[1] = m_player.inventory.at(index);
+                *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
+
+                srv.broadcast(updateWeapon, HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID));
+
+                delete [] updateWeapon;
+
+                break;
+            }
             default:
                 break;
         }

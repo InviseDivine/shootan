@@ -27,7 +27,7 @@ int Server::init() {
     printf("Starting server on port %d...\n", address.port);
 
     for (int i = 0; i < 64; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 64, 256)) = 1;
+        m_level.getWorld().at(PACK_INDEX(i, 63, 63)) = 1;
     }
 
     return update();

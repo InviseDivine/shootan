@@ -11,7 +11,7 @@ void Level::render() {
     }
 
     for (auto& bullet : m_bullets) {
-        DrawCircleV({bullet.pos.x, bullet.pos.y}, 5.f, BLUE);
+        DrawCircleV({bullet.pos.x, bullet.pos.y}, 0.1f, BLUE);
     }
 }
 

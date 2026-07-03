@@ -12,6 +12,16 @@ bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
     return collision;
 }
 
+bool CheckCollisionRecs(RRectangle rec1, RRectangle rec2)
+{
+    bool collision = false;
+
+    if ((rec1.x < (rec2.x + rec2.width) && (rec1.x + rec1.width) > rec2.x) &&
+        (rec1.y < (rec2.y + rec2.height) && (rec1.y + rec1.height) > rec2.y)) collision = true;
+
+    return collision;
+}
+
 inline void removeBulletPacket(uint32_t index, Server& srv) {
     auto removeBullet = new char[HEADER_SIZE + sizeof(index)];
 
@@ -26,6 +36,22 @@ inline void removeBulletPacket(uint32_t index, Server& srv) {
 void Level::update() {
     auto& srv = Server::get();
 
+    for (auto& coll : m_collectibles) {
+        for (auto& [_, plr] : srv.getClients()) {
+            if (coll.respawnTime > 0) {
+                coll.respawnTime -= 10.f;
+            } else if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
+                coll.respawnTime = 600.f;
+
+                if (coll.type == MEDKIT) {
+                    plr.m_player.hp += 15.f;
+                } else {
+                    // ..
+                }
+            }
+        }
+    }
+
     for (auto& bullet : m_bullets) {
         Weapon& wpn = weapons.at(bullet.weaponId);
         
@@ -35,6 +61,7 @@ void Level::update() {
                 {client.second.m_player.x, client.second.m_player.y, 1.f, 1.f}) 
                 && bullet.owner != client.first
              ) {
+                // std::cout << wpn.damage << std::endl;
                 
                 client.second.m_player.hp -= wpn.damage;
                 

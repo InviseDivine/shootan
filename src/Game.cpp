@@ -8,6 +8,12 @@
 #include <raymath.h>
 #include <thread>
 
+// Texture2D& Game::getCollectibleTextureFromId(Collectible id) {
+//     switch (id) {
+//         case MEDKIT
+//     };
+// };
+
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
     auto movePacket = new char[moveSize];
@@ -24,14 +30,18 @@ void Game::sendMovePacket() {
 void Game::init(std::string nickname) {
     // temp
     for (int i = 0; i < 64; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 64, 256)) = 1;
+        m_level.getWorld().at(PACK_INDEX(i, 63, 63)) = 1;
     }
 
     InitWindow(1280, 720, "Shootan YOOO");
 
     SetTargetFPS(60);
 
-    m_player = {nickname, 1, 63, 100, 0, {GUN}, {0, 0}, true};
+    m_player = {nickname, 1, 61, 100, 0, {GUN}, {0, 0}, true};
+
+    m_textures.at(GUN) = LoadTexture("assets/pistol.png");
+    m_textures.at(SHOTGUN) = LoadTexture("assets/shotgun.png");
+    m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
 
     auto& mp = Multiplayer::get();
     std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
@@ -41,8 +51,6 @@ void Game::init(std::string nickname) {
     m_camera.offset = Vector2{ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
     m_camera.rotation = 0.0f;
     m_camera.zoom = 50.0f;
-    
-    m_pistol = LoadTexture("assets/pistol.png");
 
     while (!WindowShouldClose()) {
         update();
@@ -70,7 +78,19 @@ void Game::update() {
 
     m_level.update();
 
-
+    for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
+        if (IsKeyPressed(KEY_ONE + i)) {
+            auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+            updateWeapon[0] = UPDATEWEAPON;
+            updateWeapon[1] = i;
+            
+            auto& mp = Multiplayer::get();
+            
+            mp.sendPacket(updateWeapon, 2, true);
+            
+            delete [] updateWeapon;
+        }
+    }
     if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
         std::cout << "test" << std::endl;
         
@@ -180,8 +200,9 @@ void Game::render() {
         }
         
         DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
-
-        DrawTexturePro(m_pistol, {0, 0, static_cast<float>(m_pistol.width), static_cast<float>(m_pistol.height * flip)},
+        
+        auto& tex = m_textures.at(m_player.inventory.at(m_player.currentWeapon));
+        DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
             {m_player.x + 0.5f, m_player.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, angle, WHITE);
     EndMode2D();
 }
