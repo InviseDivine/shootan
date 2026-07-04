@@ -7,6 +7,7 @@
 #include <raylib.h>
 #include <raymath.h>
 #include <thread>
+#include <Weapons.hpp>
 
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
@@ -68,6 +69,10 @@ void Game::update() {
 
     for (uint32_t i = 0; i < m_timer.getTicks(); i++) {
         m_level.update();
+
+        if (m_player.reload > 0) {
+            m_player.reload -= 1.f;
+        }
     }
         
     for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
@@ -94,13 +99,14 @@ void Game::update() {
 
         auto& mp = Multiplayer::get();
 
-        // m_level.addBullet(Bullet {{gunPos.x, gunPos.y}, {cosf(angle) * 0.1f, sinf(angle) * 0.1f}});
         auto addBulletPacket = new char[HEADER_SIZE + 4];
         addBulletPacket[0] = Header::ADDBULLET;
 
         *(float*)(addBulletPacket + HEADER_SIZE) = angle;
 
         mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
+
+        m_player.reload = weapons.at(m_player.inventory.at(m_player.currentWeapon)).reloadTime;
 
         delete [] addBulletPacket;
     }
@@ -110,11 +116,11 @@ void Game::update() {
     }
 
     if (IsKeyDown(KEY_A)) {
-        m_player.speed.x = -0.15f;
+        m_player.speed.x = -0.175f;
     }
 
     if (IsKeyDown(KEY_D)) {
-        m_player.speed.x = 0.15f;
+        m_player.speed.x = 0.175f;
     }
     
     // std::cout << m_player.x << std::endl;
@@ -192,6 +198,10 @@ void Game::render() {
     
     DrawFPS(0, 0);
     DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
+
+    if (m_player.reload > 0) {
+        DrawText("Reloading...", 0, 80, 40, WHITE);
+    }
     BeginMode2D(m_camera);
         m_level.render();
 

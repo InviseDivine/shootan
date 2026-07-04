@@ -180,40 +180,44 @@ void Client::packetReceived(ENetPacket* packet) {
             }
 
             case ADDBULLET: {
-                auto angle = *(float*)bytes;
-                auto& level = srv.getLevel();
+                if (m_player.reload <= 0) {
+                    auto angle = *(float*)bytes;
+                    auto& level = srv.getLevel();
 
-                RVector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
-                Weapon& wpn = weapons.at(m_player.currentWeapon);
+                    RVector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+                    Weapon& wpn = weapons.at(m_player.currentWeapon);
 
-                Bullet bullet = Bullet {
-                    {gunPos.x, gunPos.y},   
-                    {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
-                    static_cast<uint32_t>(level.bulletSize()),
-                    wpn.lifeTime, 
-                    m_peer->connectID,
-                    m_player.currentWeapon
-                };
-                                
-                level.addBullet(bullet);
+                    Bullet bullet = Bullet {
+                        {gunPos.x, gunPos.y},   
+                        {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
+                        static_cast<uint32_t>(level.bulletSize()),
+                        wpn.lifeTime, 
+                        m_peer->connectID,
+                        m_player.currentWeapon
+                    };
+                                    
+                    level.addBullet(bullet);
 
-                auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8];
-                addBulletPacket[0] = Header::ADDBULLET;
-                
-                uint32_t size = bullet.id;
+                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8];
+                    addBulletPacket[0] = Header::ADDBULLET;
+                    
+                    uint32_t size = bullet.id;
 
-                *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
-                *(float*)(addBulletPacket + HEADER_SIZE + 4) = bullet.pos.x;
-                *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
-                *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
-                *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
+                    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 4) = bullet.pos.x;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
 
-                auto& srv = Server::get();
+                    auto& srv = Server::get();
 
-                srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
+                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
 
-                delete [] addBulletPacket;
-                break;
+                    m_player.reload = wpn.reloadTime;
+                    
+                    delete [] addBulletPacket;
+                    break;
+                }
             };
             case UPDATEWEAPON: {
                 auto index = *(uint8_t*)bytes;

@@ -51,6 +51,7 @@ struct Weapon {
     int damage;    
     int bulletsCount;
     float bulletSpeed;
+    float reloadTime;
 };
 
 enum Weapons : uint8_t {
@@ -94,6 +95,8 @@ struct Player {
     bool onGround;
 
     int score;  
+
+    float reload;
 };
 
 struct Bullet {

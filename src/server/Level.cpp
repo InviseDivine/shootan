@@ -5,6 +5,7 @@
 #include "Types.hpp"
 #include "Weapons.hpp"
 #include "Server.hpp"
+#include <algorithm>
 
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
@@ -84,13 +85,50 @@ void Level::update() {
                     coll.isSent = true;
                 }
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
-                    coll.respawnTime = 600.f;
-
                     if (coll.type == MEDKIT) {
                         plr.m_player.hp += 15.f;
                     } else {
-                        // ..
+                        // TODO: it can be better?
+                        switch (coll.type) {
+                            case SHOTGUN_COLLECT: {
+                                auto& inv = plr.m_player.inventory;
+
+                                if (std::find(inv.begin(), inv.end(), SHOTGUN) == inv.end()) {
+                                    auto weaponShotgun = new char[HEADER_SIZE + 1];
+                                    weaponShotgun[0] = ADDWEAPON;
+                                    weaponShotgun[1] = SHOTGUN;
+
+                                    plr.m_player.inventory.push_back(SHOTGUN);
+
+                                    plr.sendPacketTo(weaponShotgun, 2);
+                                } else {
+                                    continue;
+                                }
+                                
+                                break;
+                            }
+                            case SNIPER_COLLECT: {
+                                auto& inv = plr.m_player.inventory;
+
+                                if (std::find(inv.begin(), inv.end(), SNIPER_RIFLE) == inv.end()) {
+                                    auto weaponShotgun = new char[HEADER_SIZE + 1];
+                                    weaponShotgun[0] = ADDWEAPON;
+                                    weaponShotgun[1] = SNIPER_RIFLE;
+
+                                    plr.m_player.inventory.push_back(SNIPER_RIFLE);
+
+                                    plr.sendPacketTo(weaponShotgun, 2);
+                                } else {
+                                    continue;
+                                }
+                                
+                                break;
+                            }
+                            default: break;
+                        }
                     }
+
+                    coll.respawnTime = 600.f;
                 }
             }
         }
@@ -101,10 +139,9 @@ void Level::update() {
             auto& plr = client.second.m_player;
             Weapon& wpn = weapons.at(bullet.weaponId);
             
-            if (CheckCollisionPointRec(
+            if (bullet.owner != client.first && CheckCollisionPointRec(
                 {bullet.pos.x, bullet.pos.y}, 
                 {client.second.m_player.x, client.second.m_player.y, 1.f, 1.f}) 
-                && bullet.owner != client.first
             ) {
                 client.second.m_player.hp -= wpn.damage;
                 
@@ -154,5 +191,11 @@ void Level::update() {
         bullet.pos.x += bullet.velocity.x;
         bullet.pos.y += bullet.velocity.y;
         bullet.lifeTime -= 1.f;   
+    }
+
+    for (auto& [_, plr] : srv.getClients()) {
+        if (plr.m_player.reload > 0) {
+            plr.m_player.reload -= 1.f;
+        }
     }
 }

@@ -12,7 +12,7 @@
 
 
 inline std::array<Weapon, WEAPONS_COUNT> weapons {{
-    {150.f, 20, 10, 20, 0.1f}, // GUN
-    {75.f, 12, 25, 12, 0.1f},  // SHOTGUN
-    {200.f, 4, 50, 4, 0.15f},   // SNIPER_RIFLE
+    {150.f, 20, 10, 20, 0.1f, 15.f}, // GUN
+    {75.f, 12, 25, 12, 0.1f, 25.f},  // SHOTGUN
+    {200.f, 4, 50, 4, 0.2f, 75.f},   // SNIPER_RIFLE
 }};
