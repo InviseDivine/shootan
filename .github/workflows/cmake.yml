@@ -52,16 +52,16 @@ jobs:
     - name: Install
       run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-    # - name: Pack
-    #   run: |
-    #     cd ${{ steps.strings.outputs.build-output-dir }}
-    #     cpack -C ${{ matrix.build_type }}
-
-    - name: Archive
+    - name: Pack
       run: |
-          cmake -E tar cfv game.zip --format=zip build/
+        cd ${{ steps.strings.outputs.build-output-dir }}
+        cpack -C ${{ matrix.build_type }}
+
+    # - name: Archive
+    #   run: |
+    #       cmake -E tar cfv game.zip --format=zip build/
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
-        name: game
-        path: game.zip
+        name: game-${{matrix.os}}
+        path: build/package/*.zip

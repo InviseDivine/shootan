@@ -11,6 +11,8 @@ set(ENET_TEST OFF)
 
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
+set(BUILD_EXAMPLES OFF)
+
 CPMAddPackage("gh:raysan5/raylib#6.0")
 CPMAddPackage("gh:zpl-c/enet#v2.6.5")
 CPMAddPackage("gh:madler/zlib#v1.3.2")
