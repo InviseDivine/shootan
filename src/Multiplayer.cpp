@@ -201,8 +201,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             if (id != game.getMyId()) {
                 game.updatePlayerPos(id, x, y);
             } else {
-                game.getPlayer().x = x;
-                game.getPlayer().y = y;
+                // game.getPlayer().x = x;
+                // game.getPlayer().y = y;
             }
             
             break;

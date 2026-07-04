@@ -34,7 +34,7 @@ void Game::init(std::string nickname) {
     m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
 
     auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "127.0.0.1", 6890).detach();
+    std::thread(&Multiplayer::init, &mp, m_player.nickname, "sffempire.ru", 6890).detach();
 
     m_camera = { 0 };
 
@@ -160,8 +160,9 @@ void Game::update() {
         auto tempX = m_player.x + x;
 
         if (tempX >= 0 && tempX <= WORLD_SIZE) {
-            m_player.x = tempX;
+            playerBox.x = m_player.x = tempX;
         }
+
         // printf("%f \n", x);
         float y = m_player.speed.y;
         // Check for Y collision
@@ -178,7 +179,7 @@ void Game::update() {
 
         if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
 
-        if (m_player.speed.x < 0.01f) m_player.speed.x = 0;
+        if (m_player.speed.x < 0.001f) m_player.speed.x = 0;
         m_player.speed.x *= 0.91f;
         m_player.speed.y *= 0.98f;
     }
@@ -196,18 +197,21 @@ void Game::render() {
     
     int flip = angle >= 90 && angle < 270 ? -1 : 1;
     
+    // Debug info
     DrawFPS(0, 0);
     DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
 
     if (m_player.reload > 0) {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
+    
     BeginMode2D(m_camera);
         m_level.render();
 
         for (auto& [_, client] : m_players) {  
             auto& tex = m_textures.at(client.currentWeapon);
-          
+
+            DrawTextPro(GetFontDefault(), TextFormat("%s", client.nickname.c_str()), {client.x, client.y}, {0, 0}, 0, 0.175f, 0, WHITE);
             DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
             DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height)},
                 {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, 0, WHITE);

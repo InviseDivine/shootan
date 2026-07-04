@@ -84,6 +84,7 @@ void Level::update() {
                     delete [] sendCollectible;
                     coll.isSent = true;
                 }
+                
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
                         plr.m_player.hp += 15.f;
