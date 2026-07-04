@@ -22,7 +22,7 @@ public:
     }
 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
-
+    void setWorld(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_world.begin()); }
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     void removeBullet(uint32_t index) {
         std::erase_if(m_bullets, [&index](Bullet blt) { 

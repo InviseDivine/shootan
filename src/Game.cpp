@@ -2,17 +2,10 @@
 #include "Multiplayer.hpp"
 #include <Game.hpp>
 #include <cmath>
-#include <iostream>
 #include <Utils.hpp>
 #include <Collisions.hpp>
 #include <raymath.h>
 #include <thread>
-
-// Texture2D& Game::getCollectibleTextureFromId(Collectible id) {
-//     switch (id) {
-//         case MEDKIT
-//     };
-// };
 
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
@@ -28,11 +21,6 @@ void Game::sendMovePacket() {
     delete [] movePacket;
 }
 void Game::init(std::string nickname) {
-    // temp
-    for (int i = 0; i < 64; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 63, 63)) = 1;
-    }
-
     InitWindow(1280, 720, "Shootan YOOO");
 
     SetTargetFPS(60);
@@ -44,7 +32,7 @@ void Game::init(std::string nickname) {
     m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
 
     auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
+    std::thread(&Multiplayer::init, &mp, m_player.nickname, "127.0.0.1", 6890).detach();
 
     m_camera = { 0 };
 
@@ -61,12 +49,13 @@ void Game::init(std::string nickname) {
     }
 }
 void Game::update() {
+    m_timer.advanceTime();
+
     auto width = GetScreenWidth();
     auto height = GetScreenHeight();
 
     m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };
     m_camera.target = Vector2 {m_player.x, m_player.y};
-
     
     Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
     Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
@@ -76,8 +65,10 @@ void Game::update() {
     if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
     if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
 
-    m_level.update();
-
+    for (uint32_t i = 0; i < m_timer.getTicks(); i++) {
+        m_level.update();
+    }
+        
     for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
         if (IsKeyPressed(KEY_ONE + i)) {
             auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
@@ -91,9 +82,7 @@ void Game::update() {
             delete [] updateWeapon;
         }
     }
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-        std::cout << "test" << std::endl;
-        
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {        
         Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
 
         Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
@@ -126,57 +115,66 @@ void Game::update() {
     if (IsKeyDown(KEY_D)) {
         m_player.speed.x = 0.1f;
     }
+    
+    // std::cout << m_player.x << std::endl;
+    // std::cout << m_player.y << std::endl;
+
+    if (m_loaded) {
+        m_player.speed.y += 0.02f;
+
+        float prevX = m_player.speed.x;
+        float prevY = m_player.speed.y;
+
+        Vector2 blocksAroundArr[10] = { 0 };
         
-    m_player.speed.y += 0.02f;
+        int blocksAroundCount = 0;
+        for (int yy = (int)m_player.y - 1; yy <= (int)(m_player.y + 5.f); yy++) {
+            for (int xx = (int)m_player.x - 1; xx <= (int)(m_player.x + 5.f); xx++) {
+                if (m_level.GetBlock(xx, yy)) {
+                    if (blocksAroundCount >= 10) {
+                        break;
+                    } 
 
-    float prevX = m_player.speed.x;
-    float prevY = m_player.speed.y;
+                    blocksAroundArr[blocksAroundCount] = Vector2{(float)xx, (float)yy};
+                    blocksAroundCount++;
+                }
 
-    Vector2 blocksAroundArr[10] = { 0 };
-    
-    int blocksAroundCount = 0;
-    for (int yy = (int)m_player.y - 1; yy <= (int)(m_player.y + 5.f); yy++) {
-        for (int xx = (int)m_player.x - 1; xx <= (int)(m_player.x + 5.f); xx++) {
-            if (m_level.GetBlock(xx, yy)) {
-                if (blocksAroundCount >= 10) {
-                    break;
-                } 
-
-                blocksAroundArr[blocksAroundCount] = Vector2{(float)xx, (float)yy};
-                blocksAroundCount++;
+                if (blocksAroundCount >= 20) break;
             }
-
-            if (blocksAroundCount >= 20) break;
         }
+        
+        RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
+
+        float x = m_player.speed.x;
+        // Check for X collision
+        for (int i = 0; i < blocksAroundCount; i++) {
+            x = ClipX(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, x);
+        }
+        auto tempX = m_player.x + x;
+
+        if (tempX >= 0) {
+            m_player.x = tempX;
+        }
+        // printf("%f \n", x);
+        float y = m_player.speed.y;
+        // Check for Y collision
+        for (int i = 0; i < blocksAroundCount; i++) {
+            y = ClipY(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, y);
+        }
+        m_player.y += y;
+        // printf("%f \n", y);
+
+        m_player.onGround = prevY != y && prevY > 0.f;
+        // Stop motion on collision
+        if (prevX != x) m_player.speed.x = 0.f;
+        if (prevY != y) m_player.speed.y = 0.f;
+
+        if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
+
+        if (m_player.speed.x < 0.01f) m_player.speed.x = 0;
+        m_player.speed.x *= 0.91f;
+        m_player.speed.y *= 0.98f;
     }
-    
-    RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
-
-    float x = m_player.speed.x;
-    // Check for X collision
-    for (int i = 0; i < blocksAroundCount; i++) {
-        x = ClipX(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, x);
-    }
-    m_player.x += x;
-    // printf("%f \n", x);
-    float y = m_player.speed.y;
-    // Check for Y collision
-    for (int i = 0; i < blocksAroundCount; i++) {
-        y = ClipY(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, y);
-    }
-    m_player.y += y;
-    // printf("%f \n", y);
-
-    m_player.onGround = prevY != y && prevY > 0.f;
-    // Stop motion on collision
-    if (prevX != x) m_player.speed.x = 0.f;
-    if (prevY != y) m_player.speed.y = 0.f;
-
-    if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
-
-    if (m_player.speed.x < 0.01f) m_player.speed.x = 0;
-    m_player.speed.x *= 0.91f;
-    m_player.speed.y *= 0.98f;
 }
 void Game::render() {
     ClearBackground({4, 4, 50, 255});

@@ -8,6 +8,7 @@ include(${CMAKE_SOURCE_DIR}/cmake/CPM.cmake)
 
 CPMAddPackage("gh:raysan5/raylib#6.0")
 CPMAddPackage("gh:zpl-c/enet#v2.6.5")
+CPMAddPackage("gh:madler/zlib#v1.3.2")
 
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/*.cpp
@@ -24,14 +25,14 @@ file(GLOB Shared
 add_executable(${PROJECT_NAME} ${Client} ${Shared})
 add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
 
-target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static)
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlib)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/shared
 
 )
 
-target_link_libraries(${PROJECT_NAME}-server PUBLIC raylib enet_static)
+target_link_libraries(${PROJECT_NAME}-server PUBLIC enet_static zlib)
 target_include_directories(${PROJECT_NAME}-server PUBLIC
     ${CMAKE_SOURCE_DIR}/src/server
     ${CMAKE_SOURCE_DIR}/src/shared

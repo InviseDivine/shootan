@@ -1,9 +1,11 @@
 #include <Level.hpp>
 #include <cstdint>
+#include <iostream>
 #include "Server.hpp"
 #include "Types.hpp"
 #include "Weapons.hpp"
 
+// https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
     bool collision = false;
 
@@ -12,6 +14,7 @@ bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
     return collision;
 }
 
+// https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2329
 bool CheckCollisionRecs(RRectangle rec1, RRectangle rec2)
 {
     bool collision = false;
@@ -53,34 +56,56 @@ void Level::update() {
     }
 
     for (auto& bullet : m_bullets) {
-        Weapon& wpn = weapons.at(bullet.weaponId);
-        
-        for (auto client : srv.getClients()) {        
+        for (auto& client : srv.getClients()) {       
+            auto& plr = client.second.m_player;
+            Weapon& wpn = weapons.at(bullet.weaponId);
+            
             if (CheckCollisionPointRec(
                 {bullet.pos.x, bullet.pos.y}, 
                 {client.second.m_player.x, client.second.m_player.y, 1.f, 1.f}) 
                 && bullet.owner != client.first
-             ) {
-                // std::cout << wpn.damage << std::endl;
-                
+            ) {
                 client.second.m_player.hp -= wpn.damage;
                 
+                auto owner = srv.getClients().find(bullet.owner);
+                owner->second.m_player.score++;
+                
+                if (client.second.m_player.hp <= 0) {
+                    plr.hp = 100;    
+                    
+                    auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
+                    auto movePlrPacket = new char[moveSize];
+                    
+                    movePlrPacket[0] = MOVE;
+                    
+                    *(uint32_t*)(movePlrPacket + 1) = client.first;
+                    *(float*)(movePlrPacket + 5) = 1;
+                    *(float*)(movePlrPacket + 9) = 60;
+
+                    srv.broadcast(movePlrPacket, moveSize);
+
+                    delete [] movePlrPacket;
+                }
+                
+                removeBulletPacket(bullet.id, srv);
+                std::erase_if(m_bullets, [&bullet](Bullet blt) { 
+                    return blt.id == bullet.id;
+                });
+
+                continue;
+            } else if (bullet.lifeTime <= 0 || GetBlock(bullet.pos.x, bullet.pos.y)) {
                 std::erase_if(m_bullets, [&bullet](Bullet blt) { 
                     return blt.id == bullet.id;
                 });
                 
                 removeBulletPacket(bullet.id, srv);
-            } else if (bullet.lifeTime <= 0 || GetBlock(bullet.pos.y, bullet.pos.y)) { // TODO: Fix GetBlock (smth wrong with float to int conversion i think)
-                std::erase_if(m_bullets, [&bullet](Bullet blt) { 
-                    return blt.id == bullet.id;
-                });
                 
-                removeBulletPacket(bullet.id, srv);
-            }
+                continue;
+            }     
         }
 
         bullet.pos.x += bullet.velocity.x;
         bullet.pos.y += bullet.velocity.y;
-        bullet.lifeTime -= 1.f;
+        bullet.lifeTime -= 1.f;   
     }
 }

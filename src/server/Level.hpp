@@ -4,7 +4,6 @@
 #include <Types.hpp>
 #include <vector>
 #include <array>
-#include <map>
 
 class Level {
 public:
@@ -22,11 +21,13 @@ public:
     }
 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
-
+    std::vector<Collectible>& getCollectibles() { return m_collectibles; }
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     int bulletSize() { return m_bullets.size(); }
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
+    
+    uint32_t m_scoreLimit;
     
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectibles;

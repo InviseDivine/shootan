@@ -5,6 +5,8 @@
 #include <Game.hpp>
 #include <iostream>
 #include <enet.h>
+#include <iostream>
+#include <zlib.h>
 
 void Multiplayer::init(std::string nickname, std::string ip, int port) {
     if (enet_initialize() != 0) {
@@ -24,7 +26,11 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
     ENetAddress address;
 
-    enet_address_set_host(&address, ip.c_str());
+    if (enet_address_set_host(&address, ip.c_str()) != 0) {
+        fprintf(stderr, "Failed to resolve host %s\n", ip.c_str());
+
+        return;
+    }    
     address.port = port;
 
     m_peer = enet_host_connect(m_client, &address, 2, 0);
@@ -35,9 +41,10 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
     }
 
     ENetEvent event;
-    if (enet_host_service(m_client, &event, 5000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
+    if (enet_host_service(m_client, &event, 10000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
         printf("Connection to %s:%d succeeded \n", ip.c_str(), port);
     } else {
+        printf("event.type=%d\n", event.type);
         enet_peer_reset(m_peer);
         printf("Connection to %s:%d failed \n", ip.c_str(), port);
 
@@ -172,8 +179,10 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 printf("its me \n");
 
                 game.setMyId(id);
+                game.getPlayer().x = x;
+                game.getPlayer().y = y;
             } else {
-                auto p = Player(name, 0, 0, 100);
+                auto p = Player(name, x, y, 100);
 
                 game.addPlayer(id, p);
             }
@@ -255,13 +264,28 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case ADDWEAPON: {
-            std::cout << "add" << std::endl;
-
             auto weaponID = *(uint8_t*)bytes;
             bytes++;
 
             game.addWeapon(weaponID);
             
+            break;
+        }
+
+        case LEVEL:  {
+            auto size = *(uint32_t*)bytes;
+            bytes += 4;
+            std::vector<Bytef> decompressedData(WORLD_SIZE * WORLD_SIZE);
+
+            std::vector<Bytef> compressedData;
+            compressedData.insert(compressedData.begin(), bytes, bytes + 5 + size);
+
+            uLongf uncomp =  WORLD_SIZE * WORLD_SIZE;
+
+            int res = uncompress(decompressedData.data(), &uncomp, compressedData.data(), size);
+            game.getLevel().setWorld(decompressedData);
+
+            game.setLoaded(true);
             break;
         }
         default: break;

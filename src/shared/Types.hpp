@@ -8,6 +8,7 @@
 #define HEADER_SIZE 1
 #define WORLD_SIZE 64
 #define TICKS 60
+#define PLAYER_SIZE 1.f
 
 struct RVector2 {
     float x;
@@ -32,6 +33,7 @@ enum Header : uint8_t {
     SETHP,
     ADDWEAPON,
     UPDATEWEAPON,
+    LEVEL
 };
 
 struct Weapon {

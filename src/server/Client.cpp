@@ -2,8 +2,10 @@
 #include <Types.hpp>
 #include <cmath>
 #include <iostream>
+#include "Level.hpp"
 #include "Server.hpp"
 #include <Weapons.hpp>
+#include <zlib.h>
 
 void Client::packetReceived(ENetPacket* packet) {
     auto bytes = packet->data;
@@ -31,17 +33,61 @@ void Client::packetReceived(ENetPacket* packet) {
 
         memcpy(nickname, bytes, nicknameLen);
         
-        printf("Nickname: %s \n", nickname);    
+        auto& collectibles = srv.getLevel().getCollectibles();
 
-        float x = 1;
-        float y = 62;
+        uLongf ogLvlSize = WORLD_SIZE * WORLD_SIZE;
+        uLongf compressed = compressBound(ogLvlSize);
+        std::vector<Bytef> compressedData(compressed);
 
+        int res = compress(compressedData.data(), &compressed, 
+                        (const Bytef*)srv.getLevel().getWorld().data(), ogLvlSize);
+
+        std::cout << compressed << std::endl;
+
+        compressedData.resize(compressed);
+        auto lvlSize = 
+            HEADER_SIZE +
+            sizeof(compressed) + 
+            compressed + 
+            sizeof(uint32_t) +
+            collectibles.size() * (sizeof(float) * 2 + sizeof(Collectibles));
+
+        auto levelPacket = new char[lvlSize];
+        
+        levelPacket[0] = Header::LEVEL; 
+
+        *(uint32_t*)(levelPacket + 1) = compressed;
+        char* dst = levelPacket + 5;
+
+        memcpy(dst, compressedData.data(), compressed);
+        
+        auto i = HEADER_SIZE + sizeof(compressed) + compressed;
+
+        *(uint32_t*)(levelPacket + i) = collectibles.size();
+        i += 4;
+
+        for (auto& coll : collectibles) {
+            *(float*)(levelPacket + i) = coll.pos.x;
+            i += 4;
+            
+            *(float*)(levelPacket[i] + i) = coll.pos.y;
+            i += 4;
+
+            levelPacket[i] = coll.type;
+            i++;
+        }
+
+        sendPacketTo(levelPacket, lvlSize);
+        
         auto newPlayerSize = HEADER_SIZE + nicknameLen + sizeof(float) * 2 + sizeof(uint32_t);
         auto newPlayerPacket = new char[newPlayerSize];
 
         newPlayerPacket[0] = ADDPLAYER;
 
         auto newPlrIndex = 1;
+
+        float x = 1;
+        float y = 61;
 
         // x and y
         *(float*)(newPlayerPacket + newPlrIndex) = x;
@@ -70,7 +116,6 @@ void Client::packetReceived(ENetPacket* packet) {
         m_player = {nickname, x, y, 100, 0, {GUN}};
 
         for (auto& [id, client] : srv.getClients()) {
-            std::cout << id << std::endl;
             if (id != m_peer->connectID) {
                 *(uint32_t*)(playersPacket + packetIndex) = id;
                 packetIndex += 4;
@@ -106,6 +151,7 @@ void Client::packetReceived(ENetPacket* packet) {
         delete[] playersPacket;
         delete[] newPlayerPacket;
         // delete[] weaponShotgun;
+        delete[] levelPacket;
     } else { 
         switch (header) {
             case MOVE: {
@@ -114,6 +160,8 @@ void Client::packetReceived(ENetPacket* packet) {
 
                 auto y = *(float*)bytes;
                 bytes += 4;
+                
+                if (x <= 0 || x >= WORLD_SIZE) return;
 
                 m_player.x = x;
                 m_player.y = y;
@@ -173,7 +221,7 @@ void Client::packetReceived(ENetPacket* packet) {
             case UPDATEWEAPON: {
                 auto index = *(uint8_t*)bytes;
 
-                if (index > m_player.inventory.size() || index > WEAPONS_COUNT) {
+                if (index > m_player.inventory.size() || index > WEAPONS_COUNT || m_player.currentWeapon == index) {
                     return;
                 }
 

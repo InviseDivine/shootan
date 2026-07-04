@@ -1,4 +1,5 @@
 #include <Level.hpp>
+#include <iostream>
 #include <raylib.h>
 
 void Level::render() {
@@ -19,5 +20,9 @@ void Level::update() {
     for (auto& bullet : m_bullets) {
         bullet.pos.x += bullet.velocity.x;
         bullet.pos.y += bullet.velocity.y;
+
+        // bullet.lifeTime += 1.f;
+
+        // std::cout << bullet.lifeTime << std::endl;
     }
 }

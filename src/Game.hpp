@@ -1,4 +1,5 @@
 #pragma once
+#include "Timer.hpp"
 #include "Types.hpp"
 #include <cstdint>
 #include <raylib.h>
@@ -8,6 +9,8 @@
 
 class Game {
 public:
+    Game() : m_timer(TICKS) {}
+
     static inline Game& get() {
         static Game inst;
         return inst;
@@ -35,18 +38,20 @@ public:
     
     std::unordered_map<uint32_t, Player>& getPlayers() { return m_players; }
     Level& getLevel() { return m_level; }
-
+    
+    void setLoaded(bool loaded) { m_loaded = loaded; }
     void init(std::string nickname);
-    
-    
-    Texture2D& getTexture(Collectible id) { return m_textures.at(id); };
+
+    Texture2D& getTexture(Collectibles id) { return m_textures.at(id); };
     // Texture2D& getWeaponTextureFromId(Weapon id);
     void sendMovePacket();
 private:
-
+    Timer m_timer;
+    
     Camera2D m_camera;
 
     Level m_level;
+    bool m_loaded;
 
     uint32_t m_myId;
 
