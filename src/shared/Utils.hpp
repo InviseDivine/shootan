@@ -1,5 +1,5 @@
 #ifdef _WIN32
-    #include <external/fix_win32_compatibility.h>
+    #include <fix_win32_compatibility.h>
     #define sleepMs(ms) Sleep(ms)
 #else
     #include <unistd.h>
