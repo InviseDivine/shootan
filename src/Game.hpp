@@ -24,8 +24,6 @@ public:
     uint32_t getMyId() { return m_myId; }
     Player& getPlayer() { return m_player; }
     void setMyWeapon(uint8_t weaponID) { 
-        std::cout << "tedt" << std::endl;
-
         for (int i = 0; i < m_player.inventory.size(); i++) {
             if (m_player.inventory.at(i) == weaponID) {
                 m_player.currentWeapon = i;
@@ -33,8 +31,7 @@ public:
             }
         }
     }
-    void addWeapon(uint8_t weaponID) { m_player.inventory.push_back(weaponID); 
-    std::cout << m_player.inventory.size() << std::endl; }
+    void addWeapon(uint8_t weaponID) { m_player.inventory.push_back(weaponID); }
     
     std::unordered_map<uint32_t, Player>& getPlayers() { return m_players; }
     Level& getLevel() { return m_level; }
@@ -43,7 +40,7 @@ public:
     void init(std::string nickname);
 
     Texture2D& getTexture(Collectibles id) { return m_textures.at(id); };
-    // Texture2D& getWeaponTextureFromId(Weapon id);
+
     void sendMovePacket();
 private:
     Timer m_timer;

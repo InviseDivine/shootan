@@ -1,9 +1,10 @@
 #include <Level.hpp>
 #include <cstdint>
 #include <iostream>
-#include "Server.hpp"
+#include <random>
 #include "Types.hpp"
 #include "Weapons.hpp"
+#include "Server.hpp"
 
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
@@ -15,14 +16,18 @@ bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
 }
 
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2329
-bool CheckCollisionRecs(RRectangle rec1, RRectangle rec2)
-{
+bool CheckCollisionRecs(RRectangle rec1, RRectangle rec2) {
     bool collision = false;
 
     if ((rec1.x < (rec2.x + rec2.width) && (rec1.x + rec1.width) > rec2.x) &&
         (rec1.y < (rec2.y + rec2.height) && (rec1.y + rec1.height) > rec2.y)) collision = true;
 
     return collision;
+}
+
+Level::Level() {
+    std::random_device rd;
+    m_gen = std::mt19937(rd());
 }
 
 inline void removeBulletPacket(uint32_t index, Server& srv) {
@@ -36,20 +41,56 @@ inline void removeBulletPacket(uint32_t index, Server& srv) {
     
     delete [] removeBullet;
 }
+
 void Level::update() {
     auto& srv = Server::get();
 
     for (auto& coll : m_collectibles) {
         for (auto& [_, plr] : srv.getClients()) {
             if (coll.respawnTime > 0) {
-                coll.respawnTime -= 10.f;
-            } else if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
-                coll.respawnTime = 600.f;
+                if (coll.isSent) {
+                    // TODO: Put it to function
+                    auto size = HEADER_SIZE + sizeof(float) * 2 + sizeof(Collectible);
+                    auto sendCollectible = new char[size];
 
-                if (coll.type == MEDKIT) {
-                    plr.m_player.hp += 15.f;
-                } else {
-                    // ..
+                    sendCollectible[0] = UPDATECOLLECTIBLE;
+
+                    *(float*)(sendCollectible + HEADER_SIZE) = coll.pos.x;
+                    *(float*)(sendCollectible + HEADER_SIZE + 4) = coll.pos.y;
+                    *(Collectibles*)(sendCollectible + HEADER_SIZE + 8) = NONE;
+
+                    srv.broadcast(sendCollectible, size);
+                    
+                    delete [] sendCollectible;
+                    coll.isSent = false;
+                }
+                
+                coll.respawnTime -= 1.f;
+            } else {
+                if (!coll.isSent) {
+                    // TODO: Put it to function
+                    auto size = HEADER_SIZE + sizeof(float) * 2 + sizeof(Collectible);
+                    auto sendCollectible = new char[size];
+
+                    sendCollectible[0] = UPDATECOLLECTIBLE;
+
+                    *(float*)(sendCollectible + HEADER_SIZE) = coll.pos.x;
+                    *(float*)(sendCollectible + HEADER_SIZE + 4) = coll.pos.y;
+                    *(Collectibles*)(sendCollectible + HEADER_SIZE + 8) = coll.type;
+
+                    srv.broadcast(sendCollectible, size);
+                    
+                    delete [] sendCollectible;
+                    coll.isSent = true;
+                }
+                if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
+                    coll.respawnTime = 600.f;
+
+                    if (coll.type == MEDKIT) {
+                        plr.m_player.hp += 15.f;
+                    } else {
+                        // ..
+                    }
                 }
             }
         }
@@ -78,9 +119,14 @@ void Level::update() {
                     
                     movePlrPacket[0] = MOVE;
                     
+                    auto& pos = getRandomSpawn();
+                    
+                    plr.x = pos.x;
+                    plr.y = pos.y;
+                    
                     *(uint32_t*)(movePlrPacket + 1) = client.first;
-                    *(float*)(movePlrPacket + 5) = 1;
-                    *(float*)(movePlrPacket + 9) = 60;
+                    *(float*)(movePlrPacket + 5) = pos.x;
+                    *(float*)(movePlrPacket + 9) = pos.y;
 
                     srv.broadcast(movePlrPacket, moveSize);
 
@@ -88,21 +134,22 @@ void Level::update() {
                 }
                 
                 removeBulletPacket(bullet.id, srv);
+
                 std::erase_if(m_bullets, [&bullet](Bullet blt) { 
                     return blt.id == bullet.id;
                 });
-
                 continue;
             } else if (bullet.lifeTime <= 0 || GetBlock(bullet.pos.x, bullet.pos.y)) {
+                removeBulletPacket(bullet.id, srv);
+
                 std::erase_if(m_bullets, [&bullet](Bullet blt) { 
                     return blt.id == bullet.id;
-                });
-                
-                removeBulletPacket(bullet.id, srv);
-                
+                });                
                 continue;
             }     
         }
+
+        // std::cout << bullet.id << " " << bullet.lifeTime << std::endl;
 
         bullet.pos.x += bullet.velocity.x;
         bullet.pos.y += bullet.velocity.y;

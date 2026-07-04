@@ -245,9 +245,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             break;  
         }
 
-        case UPDATEWEAPON: {
-            std::cout << "upd" << std::endl;
-            
+        case UPDATEWEAPON: {            
             auto weaponID = *(uint8_t*)bytes;
             bytes++;
             
@@ -278,16 +276,53 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             std::vector<Bytef> decompressedData(WORLD_SIZE * WORLD_SIZE);
 
             std::vector<Bytef> compressedData;
-            compressedData.insert(compressedData.begin(), bytes, bytes + 5 + size);
+            compressedData.insert(compressedData.begin(), bytes, bytes + size);
 
             uLongf uncomp =  WORLD_SIZE * WORLD_SIZE;
 
             int res = uncompress(decompressedData.data(), &uncomp, compressedData.data(), size);
             game.getLevel().setWorld(decompressedData);
 
+            bytes += size;
+
+            auto collectiblesSize = *(uint32_t*)bytes;
+            bytes += 4;
+            
+            for (int i = 0; i < collectiblesSize; i++) {
+                auto x = *(float*)bytes;
+                bytes += 4;
+                auto y = *(float*)bytes;
+                bytes += 4;
+
+                auto type = *(uint8_t*)bytes;
+                bytes++;
+
+                std::cout << "x " << x << "y " << y << std::endl;
+                std::cout << type << std::endl;
+                game.getLevel().addCollectible({{x, y}, (Collectibles) type});
+            }
+
             game.setLoaded(true);
             break;
         }
+
+        case UPDATECOLLECTIBLE: {
+            std::cout << "test" << std::endl;
+            // NOTE: Maybe we can send just index?
+            auto x = *(float*)bytes;
+            bytes += 4;
+            auto y = *(float*)bytes;
+            bytes += 4;
+
+            auto type = *(uint8_t*)bytes;
+            bytes++;
+
+            printf("%d \n", type);
+            
+            game.getLevel().editCollectible({x, y},(Collectibles)type);
+            
+            break;
+        };
         default: break;
     }
 }

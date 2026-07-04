@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 
 include(${CMAKE_SOURCE_DIR}/cmake/CPM.cmake)
 
+set(ZLIB_BUILD_TESTING OFF)
+set(ENET_TEST OFF)
+
 CPMAddPackage("gh:raysan5/raylib#6.0")
 CPMAddPackage("gh:zpl-c/enet#v2.6.5")
 CPMAddPackage("gh:madler/zlib#v1.3.2")

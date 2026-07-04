@@ -4,6 +4,7 @@
 #include <cmath>
 #include <Utils.hpp>
 #include <Collisions.hpp>
+#include <raylib.h>
 #include <raymath.h>
 #include <thread>
 
@@ -109,11 +110,11 @@ void Game::update() {
     }
 
     if (IsKeyDown(KEY_A)) {
-        m_player.speed.x = -0.1f;
+        m_player.speed.x = -0.15f;
     }
 
     if (IsKeyDown(KEY_D)) {
-        m_player.speed.x = 0.1f;
+        m_player.speed.x = 0.15f;
     }
     
     // std::cout << m_player.x << std::endl;
@@ -152,7 +153,7 @@ void Game::update() {
         }
         auto tempX = m_player.x + x;
 
-        if (tempX >= 0) {
+        if (tempX >= 0 && tempX <= WORLD_SIZE) {
             m_player.x = tempX;
         }
         // printf("%f \n", x);
@@ -190,11 +191,16 @@ void Game::render() {
     int flip = angle >= 90 && angle < 270 ? -1 : 1;
     
     DrawFPS(0, 0);
+    DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
     BeginMode2D(m_camera);
         m_level.render();
 
-        for (auto& [_, client] : m_players) {            
+        for (auto& [_, client] : m_players) {  
+            auto& tex = m_textures.at(client.currentWeapon);
+          
             DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
+            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height)},
+                {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, 0, WHITE);
         }
         
         DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   

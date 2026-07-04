@@ -22,7 +22,6 @@ public:
     Level& getLevel() { return m_level; }
 private:
     ENetHost* m_server;
-
     Timer m_timer;
     
     Level m_level;

@@ -3,7 +3,9 @@
 #include <cstdint>
 #include <Types.hpp>
 #include <Utils.hpp>
+#include <iostream>
 #include <vector>
+#include <algorithm>
 
 class Level {
 public:
@@ -21,8 +23,24 @@ public:
         }
     }
 
+    void addCollectible(Collectible coll) { m_collectiblies.push_back(coll); }
+    void editCollectible(RVector2 pos, Collectibles type) {        
+        for (int i = 0; i < m_collectiblies.size(); i++) {
+            auto& coll = m_collectiblies.at(i);
+            auto& pss = coll.pos;
+            printf("%f %f %f %f \n", pos.x, pos.y, pss.x, pss.y);
+            
+            if (pss.x == pos.x && pss.y == pos.y) {
+                printf("CHLEN \n");
+
+                coll.type = type;
+                break;
+            }
+        }
+    }
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
     void setWorld(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_world.begin()); }
+    
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     void removeBullet(uint32_t index) {
         std::erase_if(m_bullets, [&index](Bullet blt) { 

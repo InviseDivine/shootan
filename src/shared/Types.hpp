@@ -13,6 +13,14 @@
 struct RVector2 {
     float x;
     float y;
+
+    RVector2& operator=(const RVector2& other) {
+        if (this != &other) {
+            x = other.x;
+            y = other.y;
+        }
+        return *this;
+    }
 };
 
 struct RRectangle {
@@ -33,7 +41,8 @@ enum Header : uint8_t {
     SETHP,
     ADDWEAPON,
     UPDATEWEAPON,
-    LEVEL
+    LEVEL,
+    UPDATECOLLECTIBLE
 };
 
 struct Weapon {
@@ -44,7 +53,7 @@ struct Weapon {
     float bulletSpeed;
 };
 
-enum Weapons {
+enum Weapons : uint8_t {
     GUN = 0,
     SHOTGUN,
     SNIPER_RIFLE,
@@ -52,8 +61,8 @@ enum Weapons {
     WEAPONS_COUNT
 };
 
-enum Collectibles {
-    GUN_COLLECT = 0,
+enum Collectibles : uint8_t {
+    NONE = 0,
     SHOTGUN_COLLECT,
     SNIPER_COLLECT,
     MEDKIT,
@@ -66,6 +75,8 @@ struct Collectible {
     Collectibles type;
 
     float respawnTime;
+
+    bool isSent;
 };
 
 struct Player {
@@ -75,6 +86,7 @@ struct Player {
     int hp;
 
     uint8_t currentWeapon;
+
     // std::array<uint8_t, WEAPONS_COUNT> inventory;
     std::vector<uint8_t> inventory;
     RVector2 speed;

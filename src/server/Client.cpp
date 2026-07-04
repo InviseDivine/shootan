@@ -41,13 +41,10 @@ void Client::packetReceived(ENetPacket* packet) {
 
         int res = compress(compressedData.data(), &compressed, 
                         (const Bytef*)srv.getLevel().getWorld().data(), ogLvlSize);
-
-        std::cout << compressed << std::endl;
-
         compressedData.resize(compressed);
         auto lvlSize = 
             HEADER_SIZE +
-            sizeof(compressed) + 
+            sizeof(uint32_t) + 
             compressed + 
             sizeof(uint32_t) +
             collectibles.size() * (sizeof(float) * 2 + sizeof(Collectibles));
@@ -61,7 +58,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
         memcpy(dst, compressedData.data(), compressed);
         
-        auto i = HEADER_SIZE + sizeof(compressed) + compressed;
+        auto i = HEADER_SIZE + sizeof(uint32_t) + compressed;
 
         *(uint32_t*)(levelPacket + i) = collectibles.size();
         i += 4;
@@ -70,10 +67,10 @@ void Client::packetReceived(ENetPacket* packet) {
             *(float*)(levelPacket + i) = coll.pos.x;
             i += 4;
             
-            *(float*)(levelPacket[i] + i) = coll.pos.y;
+            *(float*)(levelPacket + i) = coll.pos.y;
             i += 4;
 
-            levelPacket[i] = coll.type;
+            *(Collectibles*)(levelPacket + i) = coll.type;
             i++;
         }
 
@@ -86,13 +83,13 @@ void Client::packetReceived(ENetPacket* packet) {
 
         auto newPlrIndex = 1;
 
-        float x = 1;
-        float y = 61;
+
+        auto& pos = srv.getLevel().getRandomSpawn();
 
         // x and y
-        *(float*)(newPlayerPacket + newPlrIndex) = x;
+        *(float*)(newPlayerPacket + newPlrIndex) = pos.x;
         newPlrIndex += 4;
-        *(float*)(newPlayerPacket + newPlrIndex) = y;
+        *(float*)(newPlayerPacket + newPlrIndex) = pos.y;
         newPlrIndex += 4;
         
         // peerID
@@ -113,7 +110,7 @@ void Client::packetReceived(ENetPacket* packet) {
         playersPacket[1] = (uint8_t)(srv.getClients().size() - 1);
         auto packetIndex = 2;
 
-        m_player = {nickname, x, y, 100, 0, {GUN}};
+        m_player = {nickname, pos.x, pos.y, 100, 0, {GUN}};
 
         for (auto& [id, client] : srv.getClients()) {
             if (id != m_peer->connectID) {
