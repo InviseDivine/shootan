@@ -1,25 +1,67 @@
-name: Build
+name: CMake multiplatform
+
 
 on: [push, pull_request]
+  
+permissions:
+  contents: write
 
 jobs:
   build:
+    runs-on: ${{ matrix.os }}
+
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
-
-    runs-on: ${{ matrix.os }}
+        build_type: [Debug]
+        include:
+          - os: windows-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+          - os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
 
     steps:
-      - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
+    - name: Set reusable strings
+      # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
+      id: strings
+      shell: bash
+      run: |
+        echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
-      - uses: jwlawson/actions-setup-cmake@v2
+    - name: Setup Environment
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install gcc-multilib
+        sudo apt-get install -y --no-install-recommends libglfw3 libglfw3-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libxext-dev libxfixes-dev libwayland-dev libwayland-bin libxkbcommon-dev
+    
+    - name: Configure CMake
+      run: >
+        cmake -B ${{ steps.strings.outputs.build-output-dir }}
+        -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+        -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+        -DCMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -S ${{ github.workspace }}
 
-      - name: Configure
-        run: cmake -B build
+    - name: Build
+      run: cmake --build ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
+      
+    - name: Install
+      run: cmake --install ${{ steps.strings.outputs.build-output-dir }} --config ${{ matrix.build_type }}
 
-      - name: Build
-        run: cmake --build build --config Release
-        
-      - name: Archive
-        run: cmake -E tar cfv game.zip --format=zip build/
+    # - name: Pack
+    #   run: |
+    #     cd ${{ steps.strings.outputs.build-output-dir }}
+    #     cpack -C ${{ matrix.build_type }}
+
+    - name: Archive
+      run: |
+          cmake -E tar cfv game.zip --format=zip build/
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: game
+        path: game.zip
