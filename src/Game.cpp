@@ -237,10 +237,12 @@ void Game::render() {
             auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
             float spacing = 0.05f;
 
-            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width, (float)plrTex.height}, 
+            int flip = client.angle >= 90 && client.angle < 270 ? -1 : 1;
+
+            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flip, (float)plrTex.height}, 
             {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
             // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
-            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height)},
+            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
                 {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, client.angle, WHITE);
             DrawTextPro(GetFontDefault(), text, {client.x, client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
