@@ -198,7 +198,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             auto y = *(float*)bytes;
             bytes += 4;
 
-            if (id != game.getMyId()) {
+            
+            if (id != game.getMyId()) {                
                 game.updatePlayerPos(id, x, y);
             } else {
                 game.getPlayer().x = x;
@@ -230,8 +231,12 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             bytes += 4;
             auto velY = *(float*)bytes;
             bytes += 4;
+            auto angle = *(float*)bytes;
+            bytes += 4;
 
-            game.getLevel().addBullet({{x, y}, {velX, velY}, index});
+            Vector2 bulletSize = {0.3f, 0.2f};
+
+            game.getLevel().addBullet({{x, y}, {velX, velY}, index, angle * RAD2DEG});
 
             break;
         }
@@ -349,6 +354,21 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             } else {
                 game.getPlayer().hp = hp;
             }
+
+            break;
+        }
+
+        case UPDATEANGLE: {
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+            auto hp = *(float*)bytes;
+            bytes += 4;
+
+            if (id != game.getMyId()) {
+                game.setAngle(id, hp);
+            }
+
+            break;
         }
         default: break;
     }

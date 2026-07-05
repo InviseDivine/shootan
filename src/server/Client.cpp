@@ -2,11 +2,11 @@
 #include <Types.hpp>
 #include <algorithm>
 #include <cmath>
-#include <iostream>
 #include "Level.hpp"
 #include "Server.hpp"
 #include <Weapons.hpp>
 #include <zlib.h>
+#include <cmath>
 
 void Client::packetReceived(ENetPacket* packet) {
     auto bytes = packet->data;
@@ -161,13 +161,11 @@ void Client::packetReceived(ENetPacket* packet) {
                 auto y = *(float*)bytes;
                 bytes += 4;
                 
-                if (x <= 0 || x >= WORLD_SIZE) return;
-
                 m_player.x = x;
                 m_player.y = y;
 
                 
-                if (y > WORLD_SIZE) {
+                if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
                     auto& lvl = srv.getLevel();
                     auto& pos = lvl.getRandomSpawn();
 
@@ -183,8 +181,8 @@ void Client::packetReceived(ENetPacket* packet) {
                 movePlrPacket[0] = MOVE;
                 
                 *(uint32_t*)(movePlrPacket + 1) = m_peer->connectID;
-                *(float*)(movePlrPacket + 5) = x;
-                *(float*)(movePlrPacket + 9) = y;
+                *(float*)(movePlrPacket + 5) = m_player.x;
+                *(float*)(movePlrPacket + 9) = m_player.y;
 
                 if (shouldExclude) {
                     srv.broadcastWithExclude(movePlrPacket, moveSize, m_peer->connectID);
@@ -209,6 +207,7 @@ void Client::packetReceived(ENetPacket* packet) {
                         {gunPos.x, gunPos.y},   
                         {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
                         static_cast<uint32_t>(level.bulletSize()),
+                        0,
                         wpn.lifeTime, 
                         m_peer->connectID,
                         m_player.currentWeapon
@@ -216,7 +215,7 @@ void Client::packetReceived(ENetPacket* packet) {
                                     
                     level.addBullet(bullet);
 
-                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8];
+                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8 + 4];
                     addBulletPacket[0] = Header::ADDBULLET;
                     
                     uint32_t size = bullet.id;
@@ -226,10 +225,11 @@ void Client::packetReceived(ENetPacket* packet) {
                     *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
                     *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
                     *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 20) = angle;
 
                     auto& srv = Server::get();
 
-                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
+                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8 + 4);
 
                     m_player.reload = wpn.reloadTime;
                     
@@ -244,17 +244,37 @@ void Client::packetReceived(ENetPacket* packet) {
                     return;
                 }
 
+                auto weaponSize = HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID);
+
                 m_player.currentWeapon = index;
-                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID)];
+                auto updateWeapon = new char[weaponSize];
 
                 updateWeapon[0] = UPDATEWEAPON;
                 updateWeapon[1] = m_player.inventory.at(index);
                 *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
 
-                srv.broadcast(updateWeapon, HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID));
+                srv.broadcast(updateWeapon, weaponSize);
 
                 delete [] updateWeapon;
 
+                break;
+            }
+
+            case UPDATEANGLE: {
+                auto angle = *(float*)bytes;
+
+                auto angleSize = HEADER_SIZE + sizeof(m_peer->connectID) + sizeof(angle);
+                
+                auto anglePacket = new char[angleSize];
+
+                anglePacket[0] = UPDATEANGLE;
+                *(uint32_t*)(anglePacket + HEADER_SIZE) = m_peer->connectID;
+                *(float*)(anglePacket + HEADER_SIZE + 4) = angle;
+
+                srv.broadcast(anglePacket, angleSize);
+
+                delete [] anglePacket;
+                
                 break;
             }
             default:

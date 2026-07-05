@@ -43,7 +43,8 @@ enum Header : uint8_t {
     UPDATEWEAPON,
     LEVEL,
     UPDATECOLLECTIBLE,
-    SETSCORE
+    SETSCORE,
+    UPDATEANGLE
 };
 
 struct Weapon {
@@ -98,6 +99,8 @@ struct Player {
     int score;  
 
     float reload;
+
+    float angle;
 };
 
 struct Bullet {
@@ -105,8 +108,11 @@ struct Bullet {
     RVector2 velocity;
 
     uint32_t id;
+    
+    float angle;
 
     float lifeTime;
+    
     uint32_t owner;
 
     uint8_t weaponId;

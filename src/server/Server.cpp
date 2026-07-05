@@ -216,7 +216,7 @@ int Server::update() {
 
 void Server::broadcastWithExclude(char* data, int size, uint32_t excludePeer) {
     for (auto& [id, client] : m_clients) {
-        if (id != client.getID()) {
+        if (id != excludePeer) {
             client.sendPacketTo(data, size);
         }
     }

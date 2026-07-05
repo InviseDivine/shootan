@@ -18,8 +18,15 @@ void Level::render() {
         }
     }
 
+    // TODO: Fix bullet pos when shooting
     for (auto& bullet : m_bullets) {
-        DrawCircleV({bullet.pos.x, bullet.pos.y}, 0.1f, BLUE);
+        auto& bulletTex = game.getTexture((Collectibles) 4);
+
+        Vector2 size = {0.3f, 0.2f};
+
+        DrawTexturePro(bulletTex, {0, 0, (float)bulletTex.width, (float)bulletTex.height}, 
+        {bullet.pos.x, bullet.pos.y, size.x, size.y}, {0, 0}, bullet.angle, WHITE);
+        // DrawCircleV({}, 0.1f, BLUE);
     }
     static float timee;
 

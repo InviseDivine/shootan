@@ -33,6 +33,11 @@ void Game::init(std::string nickname) {
     m_textures.at(SHOTGUN) = LoadTexture("assets/shotgun.png");
     m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
     m_textures.at(SNIPER_RIFLE + 1) = LoadTexture("assets/player.png");
+    m_textures.at(SNIPER_RIFLE + 2) = LoadTexture("assets/bullet.png");
+
+    SetTextureFilter(m_textures.at(GUN), TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(m_textures.at(SHOTGUN), TEXTURE_FILTER_BILINEAR);
+    SetTextureFilter(m_textures.at(SNIPER_RIFLE), TEXTURE_FILTER_BILINEAR);
 
     auto& mp = Multiplayer::get();
     std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
@@ -160,7 +165,7 @@ void Game::update() {
         }
         auto tempX = m_player.x + x;
 
-        if (tempX >= 0 && tempX <= WORLD_SIZE) {
+        if (tempX >= 0 && tempX < WORLD_SIZE - 1) {
             playerBox.x = m_player.x = tempX;
         }
 
@@ -194,8 +199,23 @@ void Game::render() {
 
     Vector2 direction = Vector2Subtract(mousePos, {m_player.x + 0.5f, m_player.y + 0.5f});
 
+    float anglePrev = 0;
     float angle = atan2f(direction.y, direction.x) * RAD2DEG;
     
+    if (anglePrev != angle) {
+        anglePrev = angle;
+
+        auto angleSize = HEADER_SIZE + sizeof(angle);
+        auto anglePacket = new char[angleSize];
+        auto& mp = Multiplayer::get();
+        
+        anglePacket[0] = UPDATEANGLE;
+        *(float*)(anglePacket + HEADER_SIZE) = angle;
+
+        mp.sendPacket(anglePacket, angleSize, true);
+
+        delete [] anglePacket;
+    }
     int flip = angle >= 90 && angle < 270 ? -1 : 1;
     
     // Debug info
@@ -221,7 +241,7 @@ void Game::render() {
             {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
             // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
             DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height)},
-                {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, 0, WHITE);
+                {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, client.angle, WHITE);
             DrawTextPro(GetFontDefault(), text, {client.x, client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
         

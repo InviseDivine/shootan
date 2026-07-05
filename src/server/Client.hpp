@@ -11,7 +11,7 @@ public:
     void packetReceived(ENetPacket* packet);
     int sendPacketTo(char* data, int size, bool reliable = true);
 
-    uint32_t getID() { return (uint32_t)((uintptr_t)m_peer->data); }
+    uint32_t getID() { return m_peer->connectID; }
 
     Player m_player;
 private:

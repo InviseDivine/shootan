@@ -5,7 +5,6 @@
 #include <raylib.h>
 #include <unordered_map>
 #include <Level.hpp>
-#include <iostream>
 
 class Game {
 public:
@@ -45,8 +44,8 @@ public:
     void sendMovePacket();
     
     void setScore(uint32_t id, uint32_t score) { m_players.at(id).score = score; }
-
     void setHp(uint32_t id, int hp) { m_players.at(id).hp = hp; }
+    void setAngle(uint32_t id, float angle) { m_players.at(id).angle = angle; }
 private:
     Timer m_timer;
     
@@ -60,7 +59,7 @@ private:
     Player m_player;
     std::unordered_map<uint32_t, Player> m_players;
 
-    std::array<Texture2D, COLLECTIBLIES_COUNT> m_textures;
+    std::array<Texture2D, COLLECTIBLIES_COUNT + 1> m_textures;
         
     void update();
     void render();
