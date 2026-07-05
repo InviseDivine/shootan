@@ -16,6 +16,7 @@ public:
         return inst;
     }
 
+    // TODO: Move the whole funcs to class Level
     void addPlayer(uint32_t id, Player player) { m_players.emplace(id, player); }
     void updatePlayerPos(uint32_t id, float x, float y) { m_players.at(id).x = x; m_players.at(id).y = y; }
     void removePlayer(uint32_t id) { m_players.erase(id); }
@@ -42,6 +43,10 @@ public:
     Texture2D& getTexture(Collectibles id) { return m_textures.at(id); };
 
     void sendMovePacket();
+    
+    void setScore(uint32_t id, uint32_t score) { m_players.at(id).score = score; }
+
+    void setHp(uint32_t id, int hp) { m_players.at(id).hp = hp; }
 private:
     Timer m_timer;
     

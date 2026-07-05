@@ -27,12 +27,8 @@ public:
     void editCollectible(RVector2 pos, Collectibles type) {        
         for (int i = 0; i < m_collectiblies.size(); i++) {
             auto& coll = m_collectiblies.at(i);
-            auto& pss = coll.pos;
-            printf("%f %f %f %f \n", pos.x, pos.y, pss.x, pss.y);
-            
+            auto& pss = coll.pos;            
             if (pss.x == pos.x && pss.y == pos.y) {
-                printf("CHLEN \n");
-
                 coll.type = type;
                 break;
             }

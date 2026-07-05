@@ -16,10 +16,13 @@ public:
     }
     
     void broadcast(char* data, int size, bool reliable = true);
+    void broadcastWithExclude(char* data, int size, uint32_t excludePeer);
 
     int init();  
     std::unordered_map<uint32_t, Client>& getClients() { return m_clients; }
     Level& getLevel() { return m_level; }
+
+    void disconnectPeer(ENetPeer* peer);
 private:
     ENetHost* m_server;
     Timer m_timer;

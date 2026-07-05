@@ -201,8 +201,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             if (id != game.getMyId()) {
                 game.updatePlayerPos(id, x, y);
             } else {
-                // game.getPlayer().x = x;
-                // game.getPlayer().y = y;
+                game.getPlayer().x = x;
+                game.getPlayer().y = y;
             }
             
             break;
@@ -307,7 +307,6 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case UPDATECOLLECTIBLE: {
-            std::cout << "test" << std::endl;
             // NOTE: Maybe we can send just index?
             auto x = *(float*)bytes;
             bytes += 4;
@@ -323,6 +322,34 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             
             break;
         };
+
+        case SETSCORE: {
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+            auto score = *(int*)bytes;
+            bytes += 4;
+
+            if (id != game.getMyId()) {
+                game.setScore(id, score);
+            } else {
+                game.getPlayer().score = score;
+            }
+            
+            break;
+        }
+
+        case SETHP: {
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+            auto hp = *(int*)bytes;
+            bytes += 4;
+
+            if (id != game.getMyId()) {
+                game.setHp(id, hp);
+            } else {
+                game.getPlayer().hp = hp;
+            }
+        }
         default: break;
     }
 }

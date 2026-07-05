@@ -42,7 +42,8 @@ enum Header : uint8_t {
     ADDWEAPON,
     UPDATEWEAPON,
     LEVEL,
-    UPDATECOLLECTIBLE
+    UPDATECOLLECTIBLE,
+    SETSCORE
 };
 
 struct Weapon {

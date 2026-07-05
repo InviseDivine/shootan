@@ -26,6 +26,20 @@ bool CheckCollisionRecs(RRectangle rec1, RRectangle rec2) {
     return collision;
 }
 
+void sendHpPacket(uint32_t id, Player& plr, Server& srv) {
+    auto size = HEADER_SIZE + sizeof(id) + sizeof(plr.hp);
+    auto sendHp = new char[size];
+
+    sendHp[0] = SETHP;
+
+    *(uint32_t*)(sendHp + HEADER_SIZE) = id;
+    *(int*)(sendHp + HEADER_SIZE + 4) = plr.hp;
+
+    srv.broadcast(sendHp, size);
+
+    delete [] sendHp;
+}
+
 Level::Level() {
     std::random_device rd;
     m_gen = std::mt19937(rd());
@@ -46,6 +60,7 @@ inline void removeBulletPacket(uint32_t index, Server& srv) {
 void Level::update() {
     auto& srv = Server::get();
 
+    // Collectibles
     for (auto& coll : m_collectibles) {
         for (auto& [_, plr] : srv.getClients()) {
             if (coll.respawnTime > 0) {
@@ -108,6 +123,7 @@ void Level::update() {
                                 
                                 break;
                             }
+                            
                             case SNIPER_COLLECT: {
                                 auto& inv = plr.m_player.inventory;
 
@@ -135,6 +151,7 @@ void Level::update() {
         }
     }
 
+    // Bullets
     for (auto& bullet : m_bullets) {
         for (auto& client : srv.getClients()) {       
             auto& plr = client.second.m_player;
@@ -146,12 +163,24 @@ void Level::update() {
             ) {
                 client.second.m_player.hp -= wpn.damage;
                 
-                auto owner = srv.getClients().find(bullet.owner);
-                owner->second.m_player.score++;
-                
                 if (client.second.m_player.hp <= 0) {
                     plr.hp = 100;    
-                    
+
+                    // score
+                    auto owner = srv.getClients().find(bullet.owner);
+                    owner->second.m_player.score++;
+
+                    auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                    auto scorePacket = new char[scoreSize];
+
+                    scorePacket[0] = Header::SETSCORE;
+
+                    *(uint32_t*)(scorePacket + HEADER_SIZE) = bullet.owner;
+                    *(int*)(scorePacket + HEADER_SIZE + 4) = owner->second.m_player.score;
+
+                    srv.broadcast(scorePacket, scoreSize);
+
+                    // respawn pos
                     auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
                     auto movePlrPacket = new char[moveSize];
                     
@@ -169,6 +198,9 @@ void Level::update() {
                     srv.broadcast(movePlrPacket, moveSize);
 
                     delete [] movePlrPacket;
+                    delete [] scorePacket;
+                } else {
+                    sendHpPacket(client.first, client.second.m_player, srv);
                 }
                 
                 removeBulletPacket(bullet.id, srv);

@@ -32,9 +32,10 @@ void Game::init(std::string nickname) {
     m_textures.at(GUN) = LoadTexture("assets/pistol.png");
     m_textures.at(SHOTGUN) = LoadTexture("assets/shotgun.png");
     m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
+    m_textures.at(SNIPER_RIFLE + 1) = LoadTexture("assets/player.png");
 
     auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "sffempire.ru", 6890).detach();
+    std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
 
     m_camera = { 0 };
 
@@ -207,20 +208,55 @@ void Game::render() {
     
     BeginMode2D(m_camera);
         m_level.render();
+        auto& plrTex = m_textures.at(SNIPER_RIFLE + 1);
 
         for (auto& [_, client] : m_players) {  
             auto& tex = m_textures.at(client.currentWeapon);
 
-            DrawTextPro(GetFontDefault(), TextFormat("%s", client.nickname.c_str()), {client.x, client.y}, {0, 0}, 0, 0.175f, 0, WHITE);
-            DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
+            auto fontSize = 0.5f;
+            auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
+            float spacing = 0.05f;
+
+            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width, (float)plrTex.height}, 
+            {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
+            // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
             DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height)},
                 {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, 0, WHITE);
+            DrawTextPro(GetFontDefault(), text, {client.x, client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
         
-        DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
+        
+        DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flip, (float)plrTex.height}, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
+        // DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
         
         auto& tex = m_textures.at(m_player.inventory.at(m_player.currentWeapon));
         DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
             {m_player.x + 0.5f, m_player.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, angle, WHITE);
     EndMode2D();
+    
+    auto hpText = TextFormat("HP: %d", m_player.hp);
+
+    DrawText(hpText, GetScreenWidth() - MeasureText(hpText, 20), 0, 20, WHITE);
+
+    if (IsKeyDown(KEY_TAB)) {
+        float x = 75;
+        float y = 75;
+
+        float width = GetScreenWidth() - x * 2;
+        float height = GetScreenHeight() - y * 2;
+        
+        Rectangle bg = {x, y, width, height};
+
+        DrawRectangleRec(bg, {0, 0, 0, 180});
+        auto count = 0;
+
+        DrawText("Score", width - x - 10, y + 10, 40, WHITE);
+        
+        DrawText(TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score), x + 40, y + 40, 20, WHITE);
+
+        for (auto& [_, client] : m_players) {
+            DrawText(TextFormat("%s - %d", client.nickname.c_str(), client.score), x + 40, y + 20 * count + 60, 20, WHITE);
+            count++;
+        }
+    }
 }

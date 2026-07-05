@@ -1,5 +1,6 @@
 #include "Client.hpp"
 #include <Types.hpp>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include "Level.hpp"
@@ -22,16 +23,26 @@ void Client::packetReceived(ENetPacket* packet) {
             return;
         }
 
+        auto& clients = srv.getClients();
+
         auto nicknameLen = packet->dataLength - 1;
 
         if (nicknameLen > 30) {
-            // TODO: Send error to client
+            // TODO: Send error to client and disconnect it
             return;
         }
 
         auto nickname = new char[nicknameLen];
 
         memcpy(nickname, bytes, nicknameLen);
+
+        auto contains = std::find_if(clients.begin(), clients.end(), [&nickname](const auto& pair) {
+            return pair.second.m_player.nickname == nickname;
+        });
+
+        if (contains != clients.end()) {
+            return; 
+        }
         
         auto& collectibles = srv.getLevel().getCollectibles();
 
@@ -83,7 +94,6 @@ void Client::packetReceived(ENetPacket* packet) {
 
         auto newPlrIndex = 1;
 
-
         auto& pos = srv.getLevel().getRandomSpawn();
 
         // x and y
@@ -101,18 +111,18 @@ void Client::packetReceived(ENetPacket* packet) {
 
         srv.broadcast(newPlayerPacket, newPlayerSize);
 
-        auto clientsCount = srv.getClients().size();
+        auto clientsCount = clients.size();
 
         auto playerPacketSize = HEADER_SIZE + sizeof(clientsCount) + (sizeof(Player) + sizeof(uint32_t)) * (clientsCount - 1);
         auto playersPacket = new char[playerPacketSize];
 
         playersPacket[0] = Header::AUTH;
-        playersPacket[1] = (uint8_t)(srv.getClients().size() - 1);
+        playersPacket[1] = (uint8_t)(clients.size() - 1);
         auto packetIndex = 2;
 
         m_player = {nickname, pos.x, pos.y, 100, 0, {GUN}};
 
-        for (auto& [id, client] : srv.getClients()) {
+        for (auto& [id, client] : clients) {
             if (id != m_peer->connectID) {
                 *(uint32_t*)(playersPacket + packetIndex) = id;
                 packetIndex += 4;
@@ -136,22 +146,15 @@ void Client::packetReceived(ENetPacket* packet) {
 
         sendPacketTo(playersPacket, playerPacketSize);
 
-        // auto weaponShotgun = new char[HEADER_SIZE + 1];
-        // weaponShotgun[0] = ADDWEAPON;
-        // weaponShotgun[1] = SNIPER_RIFLE;
-
-        // m_player.inventory.push_back(SNIPER_RIFLE);
-
-        // sendPacketTo(weaponShotgun, 2);
-
         m_loggedIn = true;
         delete[] playersPacket;
         delete[] newPlayerPacket;
-        // delete[] weaponShotgun;
         delete[] levelPacket;
     } else { 
         switch (header) {
             case MOVE: {
+                bool shouldExclude = true;
+
                 auto x = *(float*)bytes;
                 bytes += 4;
 
@@ -162,6 +165,17 @@ void Client::packetReceived(ENetPacket* packet) {
 
                 m_player.x = x;
                 m_player.y = y;
+
+                
+                if (y > WORLD_SIZE) {
+                    auto& lvl = srv.getLevel();
+                    auto& pos = lvl.getRandomSpawn();
+
+                    m_player.x = pos.x;
+                    m_player.y = pos.y;
+
+                    shouldExclude = false;
+                }
                 
                 auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(m_peer->connectID);
                 auto movePlrPacket = new char[moveSize];
@@ -172,7 +186,11 @@ void Client::packetReceived(ENetPacket* packet) {
                 *(float*)(movePlrPacket + 5) = x;
                 *(float*)(movePlrPacket + 9) = y;
 
-                srv.broadcast(movePlrPacket, moveSize);
+                if (shouldExclude) {
+                    srv.broadcastWithExclude(movePlrPacket, moveSize, m_peer->connectID);
+                } else {
+                    srv.broadcast(movePlrPacket, moveSize);
+                }
 
                 delete [] movePlrPacket;
 
