@@ -41,6 +41,10 @@ void Game::init(std::string nickname) {
     SetTextureFilter(m_textures.at(SHOTGUN), TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(m_textures.at(SNIPER_RIFLE), TEXTURE_FILTER_BILINEAR);
 
+    Image icon = LoadImage("assets/player.png");    
+    SetWindowIcon(icon);
+    UnloadImage(icon);    
+
     auto& mp = Multiplayer::get();
     std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
 
@@ -136,7 +140,11 @@ void Game::update() {
     }
 
     if (onLadder && (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))) {
+        int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+        m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
         m_player.speed.y = 0.2f;
+        m_player.x = playerX;
     }
     if (IsKeyDown(KEY_A)) {
         m_player.speed.x = -0.175f;
