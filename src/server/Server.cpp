@@ -108,6 +108,10 @@ int Server::init() {
         m_level.getWorld().at(PACK_INDEX(x, 123, WORLD_SIZE)) = BRICK;
     }
 
+    for (int x = 80; x < 91; x++) {
+        m_level.getWorld().at(PACK_INDEX(x, y, WORLD_SIZE)) = BRICK;
+    }
+
     m_level.getWorld().at(PACK_INDEX(80, 124, WORLD_SIZE)) = BRICK;
     m_level.getWorld().at(PACK_INDEX(90, 124, WORLD_SIZE)) = BRICK;
 

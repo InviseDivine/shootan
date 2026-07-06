@@ -252,14 +252,6 @@ void Game::render() {
 
     int flip = !(angle >= -90 && angle < 90) ? -1 : 1;
     
-    // Debug info
-    DrawFPS(0, 0);
-    DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
-
-    if (m_player.reload > 0) {
-        DrawText("Reloading...", 0, 80, 40, WHITE);
-    }
-    
     BeginMode2D(m_camera);
         m_level.render();
         auto& plrTex = m_textures.at(SNIPER_RIFLE + 1);
@@ -289,6 +281,14 @@ void Game::render() {
         DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
             {m_player.x + 0.5f, m_player.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, angle, WHITE);
     EndMode2D();
+    
+    // Debug info
+    DrawFPS(0, 0);
+    DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
+
+    if (m_player.reload > 0) {
+        DrawText("Reloading...", 0, 80, 40, WHITE);
+    }
     
     auto hpText = TextFormat("HP: %d", m_player.hp);
 
