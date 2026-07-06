@@ -46,6 +46,8 @@ public:
     void setScore(uint32_t id, uint32_t score) { m_players.at(id).score = score; }
     void setHp(uint32_t id, int hp) { m_players.at(id).hp = hp; }
     void setAngle(uint32_t id, float angle) { m_players.at(id).angle = angle; }
+
+    Texture2D& getBlocksSprite() { return m_blocks; }
 private:
     Timer m_timer;
     
@@ -60,7 +62,8 @@ private:
     std::unordered_map<uint32_t, Player> m_players;
 
     std::array<Texture2D, COLLECTIBLIES_COUNT + 1> m_textures;
-        
+    Texture2D m_blocks;
+
     void update();
     void render();
 };

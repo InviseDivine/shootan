@@ -102,7 +102,7 @@ void Level::update() {
                 
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
-                        plr.m_player.hp += 15.f;
+                        plr.m_player.hp += 15;
                     } else {
                         // TODO: it can be better?
                         switch (coll.type) {
@@ -209,7 +209,7 @@ void Level::update() {
                     return blt.id == bullet.id;
                 });
                 continue;
-            } else if (bullet.lifeTime <= 0 || GetBlock(bullet.pos.x, bullet.pos.y)) {
+            } else if (bullet.lifeTime <= 0 || (GetBlock(bullet.pos.x, bullet.pos.y) && GetBlock(bullet.pos.x, bullet.pos.y) != LADDER)) {
                 removeBulletPacket(bullet.id, srv);
 
                 std::erase_if(m_bullets, [&bullet](Bullet blt) { 

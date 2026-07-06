@@ -6,7 +6,7 @@
 #include <vector>
 
 #define HEADER_SIZE 1
-#define WORLD_SIZE 64
+#define WORLD_SIZE 128
 #define TICKS 60
 #define PLAYER_SIZE 1.f
 
@@ -44,7 +44,8 @@ enum Header : uint8_t {
     LEVEL,
     UPDATECOLLECTIBLE,
     SETSCORE,
-    UPDATEANGLE
+    UPDATEANGLE,
+    MESSAGE
 };
 
 struct Weapon {
@@ -54,6 +55,14 @@ struct Weapon {
     int bulletsCount;
     float bulletSpeed;
     float reloadTime;
+};
+
+enum Block : uint8_t {
+    AIR = 0,
+    GRASS = 1,
+    DIRT,
+    BRICK,
+    LADDER
 };
 
 enum Weapons : uint8_t {
@@ -78,6 +87,8 @@ struct Collectible {
     Collectibles type;
 
     float respawnTime;
+
+    float newY;
 
     bool isSent;
 };

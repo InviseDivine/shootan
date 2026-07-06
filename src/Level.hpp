@@ -19,7 +19,7 @@ public:
         if ((convX < WORLD_SIZE && convY < WORLD_SIZE)) {
             return m_world.at(PACK_INDEX(convX, convY, WORLD_SIZE));
         } else {
-            return 0;
+            return AIR;
         }
     }
 
@@ -27,7 +27,8 @@ public:
     void editCollectible(RVector2 pos, Collectibles type) {        
         for (int i = 0; i < m_collectiblies.size(); i++) {
             auto& coll = m_collectiblies.at(i);
-            auto& pss = coll.pos;            
+            auto& pss = coll.pos;      
+
             if (pss.x == pos.x && pss.y == pos.y) {
                 coll.type = type;
                 break;
@@ -43,6 +44,9 @@ public:
             return blt.id == index;
         });
     }
+
+    void drawBlock(Block block, int x, int y);
+
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
     std::vector<Bullet> m_bullets;

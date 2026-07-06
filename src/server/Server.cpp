@@ -28,87 +28,38 @@ int Server::init() {
 
     printf("Starting server on port %d...\n", address.port);
 
-    for (int i = 0; i < 64; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 63, WORLD_SIZE)) = 1;
+    float y = WORLD_SIZE - 1;
+
+    // floor main
+    for (int i = 0; i < WORLD_SIZE; i++) {
+        m_level.getWorld().at(PACK_INDEX(i, y, WORLD_SIZE)) = 1;
     }
 
-    // left
-    m_level.getWorld().at(PACK_INDEX(0, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(0, 61, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(0, 60, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(0, 59, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(1, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(1, 61, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(1, 60, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(2, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(2, 61, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(3, 62, WORLD_SIZE)) = 1;
-
-    for (int i = 4; i < 15; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 59, WORLD_SIZE)) = 1;
+    // floor
+    for (int i = 59; i > 46; i--) {
+        m_level.getWorld().at(PACK_INDEX(i, 123, WORLD_SIZE)) = BRICK;
     }
-
-    m_level.getWorld().at(PACK_INDEX(14, 60, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(14, 61, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(16, 58, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(18, 57, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(21, 57, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(22, 57, WORLD_SIZE)) = 1;
-
-    m_level.getCollectibles().push_back({{9, 58}, SHOTGUN_COLLECT, 0.f, true});
-
-    // center
-    for (int i = 28; i < 35; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, 59, WORLD_SIZE)) = 1;
-    }
-
-    m_level.getWorld().at(PACK_INDEX(28, 60, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(34, 60, WORLD_SIZE)) = 1;
     
-    m_level.getCollectibles().push_back({{30, 58}, SNIPER_COLLECT, 0.f, true});
-
-    // right
-    m_level.getWorld().at(PACK_INDEX(63, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(63, 61, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(63, 60, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(63, 59, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(62, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(62, 61, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(62, 60, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(61, 62, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(61, 61, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(60, 62, WORLD_SIZE)) = 1;
-
-    for (int i = 59; i > 48; i--) {
-        m_level.getWorld().at(PACK_INDEX(i, 59, WORLD_SIZE)) = 1;
+    // wall 1
+    for (int i = 124; i > 115; i--) {
+        m_level.getWorld().at(PACK_INDEX(59, i, WORLD_SIZE)) = BRICK;
+    }
+    
+    // wall 2
+    for (int i = 124; i > 115; i--) {
+        m_level.getWorld().at(PACK_INDEX(47, i, WORLD_SIZE)) = BRICK;
     }
 
-    m_level.getWorld().at(PACK_INDEX(49, 60, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(49, 61, WORLD_SIZE)) = 1;
+    m_level.getWorld().at(PACK_INDEX(52, 123, WORLD_SIZE)) = AIR;
+    m_level.getWorld().at(PACK_INDEX(53, 123, WORLD_SIZE)) = AIR;
+    m_level.getWorld().at(PACK_INDEX(54, 123, WORLD_SIZE)) = AIR;
 
-    m_level.getWorld().at(PACK_INDEX(47, 58, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(45, 57, WORLD_SIZE)) = 1;
-
-    m_level.getWorld().at(PACK_INDEX(42, 57, WORLD_SIZE)) = 1;
-    m_level.getWorld().at(PACK_INDEX(41, 57, WORLD_SIZE)) = 1;
-
-    m_level.getCollectibles().push_back({{54, 58}, SHOTGUN_COLLECT, 0.f, true});
-
-    m_level.addPoint({31, 62});
-    m_level.addPoint({9, 62});
-    m_level.addPoint({54, 62});
+    for (int i = 126; i > 115; i--) {
+        m_level.getWorld().at(PACK_INDEX(53, i, WORLD_SIZE)) = LADDER;
+    }
+    float x = WORLD_SIZE / 2 - 1;
+    // Respawn points
+    m_level.addPoint({x, y - 1.f});
     
     return update();
 }

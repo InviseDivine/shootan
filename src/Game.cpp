@@ -29,12 +29,14 @@ void Game::init(std::string nickname) {
 
     m_player = {nickname, 1, 61, 100, 0, {GUN}, {0, 0}, true};
 
+    // TODO: ResourceManager
     m_textures.at(GUN) = LoadTexture("assets/pistol.png");
     m_textures.at(SHOTGUN) = LoadTexture("assets/shotgun.png");
     m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
     m_textures.at(SNIPER_RIFLE + 1) = LoadTexture("assets/player.png");
     m_textures.at(SNIPER_RIFLE + 2) = LoadTexture("assets/bullet.png");
-
+    m_blocks = LoadTexture("assets/blocks.png");
+    
     SetTextureFilter(m_textures.at(GUN), TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(m_textures.at(SHOTGUN), TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(m_textures.at(SNIPER_RIFLE), TEXTURE_FILTER_BILINEAR);
@@ -117,10 +119,25 @@ void Game::update() {
         delete [] addBulletPacket;
     }
     
-    if ((IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) ||  IsKeyDown(KEY_UP)) && m_player.onGround) {
-        m_player.speed.y = -0.3f;
+    auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
+        m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
+
+    if ((IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) ||  IsKeyDown(KEY_UP))) {
+        if (onLadder) {
+            // TODO: Rewrite
+            int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+            m_player.speed.y = -0.2f;
+            m_player.x = playerX;
+        } else if (m_player.onGround) {
+            m_player.speed.y = -0.3f;
+        }
     }
 
+    if (onLadder && (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))) {
+        m_player.speed.y = 0.2f;
+    }
     if (IsKeyDown(KEY_A)) {
         m_player.speed.x = -0.175f;
     }
@@ -133,7 +150,11 @@ void Game::update() {
     // std::cout << m_player.y << std::endl;
 
     if (m_loaded) {
-        m_player.speed.y += 0.02f;
+        if (m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) != LADDER ||
+            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) != LADDER
+        ) {
+            m_player.speed.y += 0.02f;
+        }
 
         float prevX = m_player.speed.x;
         float prevY = m_player.speed.y;
@@ -144,6 +165,10 @@ void Game::update() {
         for (int yy = (int)m_player.y - 1; yy <= (int)(m_player.y + 5.f); yy++) {
             for (int xx = (int)m_player.x - 1; xx <= (int)(m_player.x + 5.f); xx++) {
                 if (m_level.GetBlock(xx, yy)) {
+                    if (m_level.GetBlock(xx, yy) == LADDER) {
+                        continue;
+                    }
+                    
                     if (blocksAroundCount >= 10) {
                         break;
                     } 
@@ -216,7 +241,8 @@ void Game::render() {
 
         delete [] anglePacket;
     }
-    int flip = angle >= 90 && angle < 270 ? -1 : 1;
+
+    int flip = !(angle >= -90 && angle < 90) ? -1 : 1;
     
     // Debug info
     DrawFPS(0, 0);
@@ -237,12 +263,12 @@ void Game::render() {
             auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
             float spacing = 0.05f;
 
-            int flip = client.angle >= 90 && client.angle < 270 ? -1 : 1;
+            int flipClient = client.angle >= 90 && client.angle < 270 ? -1 : 1;
 
-            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flip, (float)plrTex.height}, 
+            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flipClient, (float)plrTex.height}, 
             {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
             // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
-            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
+            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flipClient)},
                 {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, client.angle, WHITE);
             DrawTextPro(GetFontDefault(), text, {client.x, client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
