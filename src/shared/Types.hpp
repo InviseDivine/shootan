@@ -84,6 +84,12 @@ enum Collectibles : uint8_t {
     COLLECTIBLIES_COUNT
 };
 
+struct Message {
+    std::string text;
+    float lifeTime;
+    unsigned char alpha;
+};
+
 struct Collectible {
     RVector2 pos;
     Collectibles type;

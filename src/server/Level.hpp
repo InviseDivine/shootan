@@ -24,6 +24,8 @@ public:
     }
 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
+    std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getBackground() { return m_background; }
+
     std::vector<Collectible>& getCollectibles() { return m_collectibles; }
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     

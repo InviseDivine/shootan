@@ -44,6 +44,7 @@ void sendHpPacket(uint32_t id, Player& plr, Server& srv) {
 Level::Level() {
     std::random_device rd;
     m_gen = std::mt19937(rd());
+    m_scoreLimit = 25;
 }
 
 inline void removeBulletPacket(uint32_t index, Server& srv) {
@@ -167,9 +168,11 @@ void Level::update() {
                 if (client.second.m_player.hp <= 0) {
                     plr.hp = 100;    
 
+                    sendHpPacket(client.first, client.second.m_player, srv);
                     // score
                     auto owner = srv.getClients().find(bullet.owner);
                     owner->second.m_player.score++;
+                    srv.sendServerMessage(std::format("{} killed by {}", client.second.m_player.nickname, owner->second.m_player.nickname));
 
                     auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
                     auto scorePacket = new char[scoreSize];
@@ -240,7 +243,10 @@ void Level::read(const std::string& filepath) {
     if (world) {
         world.read(reinterpret_cast<char*>(m_world.data()),
             WORLD_SIZE * WORLD_SIZE);
-        
+
+        world.read(reinterpret_cast<char*>(m_background.data()),
+            WORLD_SIZE * WORLD_SIZE);
+            
         uint32_t collSize = 0;
 
         world.read(reinterpret_cast<char*>(&collSize), sizeof(collSize));

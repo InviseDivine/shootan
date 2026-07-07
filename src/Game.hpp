@@ -55,6 +55,8 @@ public:
     bool& getEditor() { return m_editor; }
     
     Camera2D& getCamera() { return m_camera; }
+
+    void addMessage(std::string msg) { m_messages.push_back({msg, 5000.f}); }
 private:
     Timer m_timer;
     
@@ -77,6 +79,11 @@ private:
     std::unordered_map<uint32_t, Player> m_players;
 
     std::array<Texture2D, COLLECTIBLIES_COUNT + 1> m_textures;
+
+    char m_message[255];
+    std::vector<Message> m_messages;
+    bool m_chatOpened;
+
     Texture2D m_blocks;
 
     void update();

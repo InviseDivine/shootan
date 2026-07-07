@@ -2,7 +2,6 @@
 #include <Level.hpp>
 #include <cmath>
 #include <iostream>
-#include <raylib.h>
 #include <Game.hpp>
 #include <Utils.hpp>
 #include <fstream>
@@ -17,6 +16,7 @@ void Level::write() {
         uint32_t spawnSize = (uint32_t)m_respawnPoints.size();
 
         world.write(reinterpret_cast<const char*>(m_world.data()), WORLD_SIZE * WORLD_SIZE);
+        world.write(reinterpret_cast<const char*>(m_background.data()), WORLD_SIZE * WORLD_SIZE);
         world.write(reinterpret_cast<const char*>(&collSize), sizeof(collSize));
         world.write(reinterpret_cast<const char*>(m_collectiblies.data()), m_collectiblies.size() * sizeof(Collectible));
         world.write(reinterpret_cast<const char*>(&spawnSize), sizeof(spawnSize));
@@ -33,7 +33,10 @@ void Level::read() {
     if (world) {
         world.read(reinterpret_cast<char*>(m_world.data()),
             WORLD_SIZE * WORLD_SIZE);
-        
+
+        world.read(reinterpret_cast<char*>(m_background.data()),
+            WORLD_SIZE * WORLD_SIZE); 
+
         uint32_t collSize = 0;
 
         world.read(reinterpret_cast<char*>(&collSize), sizeof(collSize));
@@ -57,13 +60,13 @@ void Level::read() {
         }
     }   
 }
-void Level::drawBlock(Block block, int x, int y) {
+void Level::drawBlock(Block block, int x, int y, Color color) {
     auto& sprite = Game::get().getBlocksSprite();
 
     int xSrc = (block % 16) * 8.f;
     int ySrc = (block / 16) * 8.f;
     
-    DrawTexturePro(sprite, {(float)xSrc, (float)ySrc, 8.f, 8.f}, {(float)x, (float)y, 1.f, 1.f}, {0, 0}, 0, WHITE);
+    DrawTexturePro(sprite, {(float)xSrc, (float)ySrc, 8.f, 8.f}, {(float)x, (float)y, 1.f, 1.f}, {0, 0}, 0, color);
 }
 
 void Level::render() {
@@ -74,12 +77,20 @@ void Level::render() {
 
     for (int y = min.y; y < max.y; y++) {
         for (int x = min.x; x < max.x; x++) {
+            auto block = GetBackgroundBlock(x, y);
+
+            if (block) {
+                drawBlock((Block)(block - 1), x, y, GRAY);
+            }  
+        }
+    }
+
+    for (int y = min.y; y < max.y; y++) {
+        for (int x = min.x; x < max.x; x++) {
             auto block = GetBlock(x, y);
 
             if (block) {
                 drawBlock((Block)(block - 1), x, y);
-
-                // DrawRectangle(x, y, 1, 1, YELLOW);
             }  
         }
     }
@@ -107,8 +118,7 @@ void Level::render() {
         if (ONSCREEN(max.x, max.y, min.x, min.y, coll.pos.x + tex.width * 0.02f, coll.pos.y) && coll.type != 0) {       
             auto texHeight = tex.height * 0.02f;
 
-            std::cout << "render " << std::endl;
-            coll.newY = coll.newY + (float)sin(timee) * 0.004f;
+            coll.newY = coll.newY + (float)sin(timee) * 0.002f;
 
             DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
             {coll.pos.x, coll.newY - (texHeight / 2), tex.width * 0.02f, texHeight}, {0, 0}, 0, WHITE);

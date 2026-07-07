@@ -24,13 +24,14 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
         exit(EXIT_FAILURE);
     }
 
-    ENetAddress address;
+    ENetAddress address = {};
 
     if (enet_address_set_host(&address, ip.c_str()) != 0) {
         fprintf(stderr, "Failed to resolve host %s\n", ip.c_str());
 
         return;
     }    
+
     address.port = port;
 
     m_peer = enet_host_connect(m_client, &address, 2, 0);
@@ -167,8 +168,6 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             bytes += 4;
             
             auto nameLen = packet->dataLength - 13;
-
-            printf("Data length: %lu \n", packet->dataLength);
             
             auto name = new char[nameLen];
             name[nameLen - 1] = 0;
@@ -278,8 +277,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         case LEVEL:  {
             auto size = *(uint32_t*)bytes;
             bytes += 4;
-            std::vector<Bytef> decompressedData(WORLD_SIZE * WORLD_SIZE);
 
+            std::vector<Bytef> decompressedData(WORLD_SIZE * WORLD_SIZE);
             std::vector<Bytef> compressedData;
             compressedData.insert(compressedData.begin(), bytes, bytes + size);
 
@@ -289,6 +288,20 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             game.getLevel().setWorld(decompressedData);
 
             bytes += size;
+
+            auto bgSize = *(uint32_t*)bytes;
+            bytes += 4;
+
+            std::vector<Bytef> decompressedBg(WORLD_SIZE * WORLD_SIZE);
+            std::vector<Bytef> compressedBg;
+            compressedBg.insert(compressedBg.begin(), bytes, bytes + bgSize);
+
+            uLongf uncompBg = WORLD_SIZE * WORLD_SIZE;
+
+            int resBg = uncompress(decompressedBg.data(), &uncompBg, compressedBg.data(), bgSize);
+            game.getLevel().setBackground(decompressedBg);
+
+            bytes += bgSize;
 
             auto collectiblesSize = *(uint32_t*)bytes;
             bytes += 4;
@@ -317,8 +330,6 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
             auto type = *(uint8_t*)bytes;
             bytes++;
-
-            printf("Coll: %d \n", type);
             
             game.getLevel().editCollectible({x, y},(Collectibles)type);
             
@@ -367,6 +378,19 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
             break;
         }
+
+        case MESSAGE: {
+            auto messageLength = packet->dataLength - 1;
+
+            auto msg = new char[messageLength + 1];
+            msg[messageLength] = 0;
+            memcpy(msg, bytes, messageLength);
+
+            game.addMessage(msg);
+
+            break;
+        }
+
         default: break;
     }
 }

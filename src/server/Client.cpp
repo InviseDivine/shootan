@@ -47,16 +47,27 @@ void Client::packetReceived(ENetPacket* packet) {
         auto& collectibles = srv.getLevel().getCollectibles();
 
         uLongf ogLvlSize = WORLD_SIZE * WORLD_SIZE;
+        
+        uLongf compressedBgSize = compressBound(ogLvlSize);
         uLongf compressed = compressBound(ogLvlSize);
+        
         std::vector<Bytef> compressedData(compressed);
+        std::vector<Bytef> compressedBg(compressedBgSize);
 
         int res = compress(compressedData.data(), &compressed, 
                         (const Bytef*)srv.getLevel().getWorld().data(), ogLvlSize);
+
+        int resBg = compress(compressedBg.data(), &compressedBgSize, 
+                        (const Bytef*)srv.getLevel().getBackground().data(), ogLvlSize);
+        
+        compressedBg.resize(compressedBgSize);
         compressedData.resize(compressed);
         auto lvlSize = 
             HEADER_SIZE +
             sizeof(uint32_t) + 
             compressed + 
+            sizeof(uint32_t) + 
+            compressedBgSize +
             sizeof(uint32_t) +
             collectibles.size() * (sizeof(float) * 2 + sizeof(Collectibles));
 
@@ -68,8 +79,13 @@ void Client::packetReceived(ENetPacket* packet) {
         char* dst = levelPacket + 5;
 
         memcpy(dst, compressedData.data(), compressed);
-        
-        auto i = HEADER_SIZE + sizeof(uint32_t) + compressed;
+
+        *(uint32_t*)(levelPacket + 5 + compressed) = compressedBgSize;
+        char* dstBg = levelPacket + 5 + compressed + 4;
+
+        memcpy(dstBg, compressedBg.data(), compressedBgSize);
+
+        auto i = HEADER_SIZE + sizeof(uint32_t) + compressed + sizeof(uint32_t) + compressedBgSize;
 
         *(uint32_t*)(levelPacket + i) = collectibles.size();
         i += 4;
@@ -147,6 +163,9 @@ void Client::packetReceived(ENetPacket* packet) {
         sendPacketTo(playersPacket, playerPacketSize);
 
         m_loggedIn = true;
+
+        srv.sendServerMessage(std::format("{} joined the server.", nickname));
+
         delete[] playersPacket;
         delete[] newPlayerPacket;
         delete[] levelPacket;
@@ -276,6 +295,16 @@ void Client::packetReceived(ENetPacket* packet) {
                 delete [] anglePacket;
                 
                 break;
+            }
+            
+            case MESSAGE: {
+                auto messageLength = packet->dataLength - 1;
+
+                auto msg = new char[messageLength + 1];
+                msg[messageLength] = 0;
+                memcpy(msg, bytes, messageLength);
+
+                srv.sendServerMessage(std::format("<{}> {}", m_player.nickname, msg));
             }
             default:
                 break;

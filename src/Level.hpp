@@ -6,6 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
+#include <raylib.h>
 
 class Level {
 public:
@@ -21,6 +22,34 @@ public:
         } else {
             return AIR;
         }
+    }
+
+    inline uint8_t GetBackground(int x, int y) {
+        int convX = MAX(0, x);
+        int convY = MAX(0, y);
+
+        if ((convX < WORLD_SIZE && convY < WORLD_SIZE)) {
+            return m_background.at(PACK_INDEX(convX, convY, WORLD_SIZE));
+        } else {
+            return AIR;
+        }
+    }
+
+    inline uint8_t GetBackgroundBlock(int x, int y) {
+        int convX = MAX(0, x);
+        int convY = MAX(0, y);
+
+        if ((convX < WORLD_SIZE && convY < WORLD_SIZE)) {
+            return m_background.at(PACK_INDEX(convX, convY, WORLD_SIZE));
+        } else {
+            return AIR;
+        }
+    }
+
+    inline void setBackgroundBlock(Block block, int x, int y) {
+        if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
+            m_background.at(PACK_INDEX(x, y, WORLD_SIZE)) = block; 
+        } 
     }
 
     inline void setBlock(Block block, int x, int y) { 
@@ -59,7 +88,8 @@ public:
 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
     void setWorld(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_world.begin()); }
-    
+    void setBackground(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_background.begin()); }
+
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     void removeBullet(uint32_t index) {
         std::erase_if(m_bullets, [&index](Bullet blt) { 
@@ -89,7 +119,7 @@ public:
         });
     }
 
-    void drawBlock(Block block, int x, int y);
+    void drawBlock(Block block, int x, int y, Color color = WHITE);
 
     void read();
     void write();

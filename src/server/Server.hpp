@@ -23,6 +23,8 @@ public:
     Level& getLevel() { return m_level; }
     
     void disconnectPeer(ENetPeer* peer);
+
+    void sendServerMessage(std::string msg);
 private:
     ENetHost* m_server;
     Timer m_timer;
