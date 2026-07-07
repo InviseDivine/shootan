@@ -6,3 +6,4 @@ Just a simple 2D shooter made with Raylib and ENet
 - Editor
 - Multiplayer
 - Various weapons and blocks, score
+- Chat
