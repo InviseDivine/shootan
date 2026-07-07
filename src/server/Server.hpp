@@ -21,7 +21,7 @@ public:
     int init();  
     std::unordered_map<uint32_t, Client>& getClients() { return m_clients; }
     Level& getLevel() { return m_level; }
-
+    
     void disconnectPeer(ENetPeer* peer);
 private:
     ENetHost* m_server;

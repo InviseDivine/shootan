@@ -59,10 +59,12 @@ struct Weapon {
 
 enum Block : uint8_t {
     AIR = 0,
-    GRASS = 1,
+    GRASS,
     DIRT,
     BRICK,
-    LADDER
+    LADDER,
+
+    BLOCKS_COUNT
 };
 
 enum Weapons : uint8_t {

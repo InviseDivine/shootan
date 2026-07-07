@@ -28,14 +28,20 @@ public:
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     
     void addPoint(RVector2 pos) { m_respawnPoints.push_back(pos); }
+
+    std::vector<RVector2>& getSpawnPoins() { return m_respawnPoints; }
+
     RVector2& getRandomSpawn() { 
         std::uniform_int_distribution<int> distrib(0, m_respawnPoints.size() - 1);
 
         return m_respawnPoints.at(distrib(m_gen)); 
     }
     int bulletSize() { return m_bullets.size(); }
+
+    void read(const std::string& filepath);
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
+    std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_background;
 
     std::mt19937 m_gen;
 

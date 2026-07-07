@@ -8,6 +8,7 @@
 #include <raymath.h>
 #include <thread>
 #include <Weapons.hpp>
+#include <raygui.h>
 
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
@@ -27,6 +28,8 @@ void Game::init(std::string nickname) {
 
     SetTargetFPS(60);
 
+    m_editor = 1;
+
     m_player = {nickname, 1, 61, 100, 0, {GUN}, {0, 0}, true};
 
     // TODO: ResourceManager
@@ -40,25 +43,38 @@ void Game::init(std::string nickname) {
     SetTextureFilter(m_textures.at(GUN), TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(m_textures.at(SHOTGUN), TEXTURE_FILTER_BILINEAR);
     SetTextureFilter(m_textures.at(SNIPER_RIFLE), TEXTURE_FILTER_BILINEAR);
-
-    Image icon = LoadImage("assets/player.png");    
+    SetTextureFilter(m_blocks, TEXTURE_FILTER_POINT);
+    Image icon = LoadImage("assets/ico.png");    
     SetWindowIcon(icon);
     UnloadImage(icon);    
 
-    auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
+    if (!m_editor) {
+        auto& mp = Multiplayer::get();
+        std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
+    } else {
+        m_level.read();
+    }
 
     m_camera = { 0 };
 
     m_camera.offset = Vector2{ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
     m_camera.rotation = 0.0f;
     m_camera.zoom = 50.0f;
+    m_cameraPos = {64, 120};
 
     while (!WindowShouldClose()) {
-        update();
+        if (m_editor) {
+            updateEditor();
+        } else {
+            update();
+        }
 
         BeginDrawing();
-            render();
+            if (m_editor) {
+                renderEditor();
+            } else {
+                render();
+            }
         EndDrawing();
     }
 }
@@ -289,7 +305,7 @@ void Game::render() {
     if (m_player.reload > 0) {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
-    
+
     auto hpText = TextFormat("HP: %d", m_player.hp);
 
     DrawText(hpText, GetScreenWidth() - MeasureText(hpText, 20), 0, 20, WHITE);
@@ -315,4 +331,160 @@ void Game::render() {
             count++;
         }
     }
+}
+
+void Game::updateEditor() {
+    auto width = GetScreenWidth();
+    auto height = GetScreenHeight();
+
+    m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };
+    m_camera.target = Vector2 {m_cameraPos.x, m_cameraPos.y};
+    
+    Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
+    Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
+
+    Vector2 mousePos = GetMousePosition();
+    Vector2 worldMouse = GetScreenToWorld2D(mousePos, m_camera);
+    Vector2 worldMousei = { 0 };
+    worldMousei.x = (int) worldMouse.x;
+    worldMousei.y = (int) worldMouse.y;
+
+    Rectangle bg = { 0 };
+    bg.width = 200.f;
+    bg.height = GetScreenHeight();
+    bg.x = GetScreenWidth() - bg.width;
+    bg.y = 0;
+
+    if (max.x < width) m_camera.offset.x = width - (max.x - (float)width/2);
+    if (max.y < height) m_camera.offset.y = height - (max.y - (float)height/2);
+    if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
+    if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
+    
+    for (int i = 0; i < BLOCKS_COUNT; i++) {
+        if (IsKeyPressed(KEY_ONE + i)) {
+            if (!m_coll) {
+                m_currentBlock = (Block) i; 
+            } else {
+                m_currentColl = (Collectibles) i;
+            }
+        }
+    }
+
+    if (IsKeyDown(KEY_A) && m_cameraPos.x >= 14) {
+        m_cameraPos.x -= 0.2f;
+    }
+
+    if (IsKeyDown(KEY_D) && m_cameraPos.x < WORLD_SIZE) {
+        m_cameraPos.x += 0.2f;
+    }
+
+    if (IsKeyDown(KEY_W)) {
+        m_cameraPos.y -= 0.2f;
+    }
+
+    if (IsKeyDown(KEY_S)) {
+        m_cameraPos.y += 0.2f;
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !CheckCollisionPointRec(mousePos, bg)) {
+        if (m_level.GetBlock(worldMousei.x, worldMousei.y)) {
+            m_level.setBlock(AIR, worldMousei.x, worldMousei.y);
+        } else if (m_level.containsCollectible({worldMousei.x, worldMousei.y})) {
+            m_level.removeCollectible({worldMousei.x, worldMousei.y});
+        } else if (m_level.containsSpawnpoint({worldMousei.x, worldMousei.y})) {
+            m_level.removeSpawnpoint({worldMousei.x, worldMousei.y});
+        }
+    }
+
+    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !CheckCollisionPointRec(mousePos, bg)) {
+        if (m_spawn) {
+            m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
+        } else if (m_coll) {
+            m_level.addCollectible({{worldMousei.x, worldMousei.y}, (Collectibles)(m_currentColl + 1)});
+        } else {
+            m_level.setBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+        }
+    }
+
+    if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        m_level.setBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+    }
+}
+
+void Game::renderEditor() {
+    auto mousePos = GetMousePosition();
+    Vector2 worldMouse = GetScreenToWorld2D({std::trunc(mousePos.x), std::trunc(mousePos.y)}, m_camera);
+
+    ClearBackground({4, 4, 50, 255});
+
+    BeginMode2D(m_camera);
+        m_level.render();
+    EndMode2D();    
+
+    // GUI
+    // TODO: Rewrite
+    Rectangle bg = { 0 };
+    bg.width = 200.f;
+    bg.height = GetScreenHeight();
+    bg.x = GetScreenWidth() - bg.width;
+    bg.y = 0;
+
+    DrawRectangleRec({bg}, {10, 10, 10, 255});
+
+    DrawFPS(0, 0);
+    DrawText(TextFormat("%f\n%f", m_cameraPos.x, m_cameraPos.y), 0, 20, 20, WHITE);
+    DrawText(TextFormat("%f\n%f", worldMouse.x, worldMouse.y), 0, 60, 20, WHITE);
+
+    float padding = 35.f;
+
+    Rectangle saveButton = { 0 };
+    saveButton.width = bg.width - padding;
+    saveButton.height = padding;
+    saveButton.x = bg.x + (padding / 2);
+    saveButton.y = padding;
+
+    if (GuiButton(saveButton, "Save")) {
+        m_level.write();
+    }
+
+    Rectangle collButton = { 0 };
+    collButton.width = bg.width - padding;
+    collButton.height = padding;
+    collButton.x = bg.x + (padding / 2);
+    collButton.y = padding * 2 + 10;
+
+    if (GuiButton(collButton, "Collectibles")) {
+        m_coll ^= 1;
+        m_spawn = false;
+    }
+
+    Rectangle respawnButton = { 0 };
+    respawnButton.width = bg.width - padding;
+    respawnButton.height = padding;
+    respawnButton.x = bg.x + (padding / 2);
+    respawnButton.y = padding * 3 + 20;
+
+    if (GuiButton(respawnButton, "Respawn")) {
+        m_spawn ^= 1;
+        m_coll = false;
+    }
+
+    auto fontSize = 20;
+    auto text = "Current block:";
+    auto blockTextY = respawnButton.y + padding + fontSize;
+
+    DrawText(text, bg.x + fontSize, blockTextY, fontSize, WHITE);
+    float blockX = ((m_currentBlock - 1) % 16) * 8.f;
+    float blockY = ((m_currentBlock - 1) / 16) * 8.f;
+
+    if (m_currentBlock == 0) {
+        DrawText("Air", bg.x + fontSize, blockTextY + fontSize, fontSize, WHITE);
+    } else {
+        DrawTexturePro(m_blocks, 
+            {blockX, blockY, 8.f, 8.f}, 
+            {bg.x + 48, blockTextY + padding, 48.f, 48.f},
+            {0, 0}, 
+            0, WHITE);
+    }
+    
 }

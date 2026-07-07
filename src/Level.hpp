@@ -23,7 +23,7 @@ public:
         }
     }
 
-    void addCollectible(Collectible coll) { m_collectiblies.push_back(coll); }
+    void addCollectible(Collectible coll) { coll.newY = coll.pos.y; m_collectiblies.push_back(coll); }
     void editCollectible(RVector2 pos, Collectibles type) {        
         for (int i = 0; i < m_collectiblies.size(); i++) {
             auto& coll = m_collectiblies.at(i);
@@ -35,6 +35,27 @@ public:
             }
         }
     }
+    void removeCollectible(RVector2 pos) {   
+        std::erase_if(m_collectiblies, [&pos](Collectible coll) { 
+            return coll.pos.x == pos.x && coll.pos.y == pos.y;
+        });     
+    }
+
+    bool containsCollectible(RVector2 pos) {
+        for (int i = 0; i < m_collectiblies.size(); i++) {
+            if (m_collectiblies.at(i).pos.x == pos.x && m_collectiblies.at(i).pos.y == pos.y) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void setBlock(Block block, int x, int y) { 
+        if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
+            m_world.at(PACK_INDEX(x, y, WORLD_SIZE)) = block; 
+        } 
+    } 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
     void setWorld(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_world.begin()); }
     
@@ -45,10 +66,37 @@ public:
         });
     }
 
+    bool containsSpawnpoint(RVector2 pos) {   
+        for (int i = 0; i < m_respawnPoints.size(); i++) {
+            std::cout << m_respawnPoints.at(i).x << " " << m_respawnPoints.at(i).y << " " << pos.x << " " << pos.y << std::endl;
+
+            if (m_respawnPoints.at(i).x == pos.x && m_respawnPoints.at(i).y == pos.y) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    void setSpawnpoint(RVector2 pos) {
+        m_respawnPoints.push_back(pos);
+    }
+
+    void removeSpawnpoint(RVector2 pos) {
+        std::erase_if(m_respawnPoints, [&pos](RVector2 spawn) { 
+            return spawn.x == pos.x && spawn.y == pos.y;
+        });
+    }
+
     void drawBlock(Block block, int x, int y);
 
+    void read();
+    void write();
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
+    std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_background;
+
+    std::vector<RVector2> m_respawnPoints;
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectiblies;
 };

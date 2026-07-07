@@ -1,6 +1,8 @@
 #include "Server.hpp"
+#include "Level.hpp"
 #include "Types.hpp"
 #include <enet.h>
+#include <fstream>
 #include <iostream>
 #include <Utils.hpp>
 #include <random>
@@ -28,132 +30,148 @@ int Server::init() {
 
     printf("Starting server on port %d...\n", address.port);
 
-    float y = WORLD_SIZE - 1;
+    m_level.read("world.dat");
 
-    // floor main
-    for (int i = 0; i < WORLD_SIZE; i++) {
-        m_level.getWorld().at(PACK_INDEX(i, y, WORLD_SIZE)) = 1;
-    }
+    // float y = WORLD_SIZE - 1;
 
-    // floor
-    for (int i = 59; i > 46; i--) {
-        m_level.getWorld().at(PACK_INDEX(i, 123, WORLD_SIZE)) = BRICK;
-    }
+    // // floor main
+    // for (int i = 0; i < WORLD_SIZE; i++) {
+    //     m_level.getWorld().at(PACK_INDEX(i, y, WORLD_SIZE)) = 1;
+    // }
+
+    // // floor
+    // for (int i = 59; i > 46; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(i, 123, WORLD_SIZE)) = BRICK;
+    // }
     
-    // wall 1
-    for (int i = 124; i > 117; i--) {
-        m_level.getWorld().at(PACK_INDEX(59, i, WORLD_SIZE)) = BRICK;
-    }
+    // // wall 1
+    // for (int i = 124; i > 117; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(59, i, WORLD_SIZE)) = BRICK;
+    // }
     
-    // wall 2
-    for (int i = 124; i > 117; i--) {
-        m_level.getWorld().at(PACK_INDEX(47, i, WORLD_SIZE)) = BRICK;
-    }
+    // // wall 2
+    // for (int i = 124; i > 117; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(47, i, WORLD_SIZE)) = BRICK;
+    // }
 
-    // floor 2
-    for (int i = 59; i > 46; i--) {
-        m_level.getWorld().at(PACK_INDEX(i, 117, WORLD_SIZE)) = BRICK;
-    }
+    // // floor 2
+    // for (int i = 59; i > 46; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(i, 117, WORLD_SIZE)) = BRICK;
+    // }
 
-    // wall 1
-    for (int i = 117; i > 106; i--) {
-        m_level.getWorld().at(PACK_INDEX(59, i, WORLD_SIZE)) = BRICK;
-    }
+    // // wall 1
+    // for (int i = 117; i > 106; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(59, i, WORLD_SIZE)) = BRICK;
+    // }
     
-    // wall 2
-    for (int i = 117; i > 106; i--) {
-        m_level.getWorld().at(PACK_INDEX(47, i, WORLD_SIZE)) = BRICK;
-    }
+    // // wall 2
+    // for (int i = 117; i > 106; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(47, i, WORLD_SIZE)) = BRICK;
+    // }
 
-    // floor 3
-    for (int i = 59; i > 46; i--) {
-        m_level.getWorld().at(PACK_INDEX(i, 112, WORLD_SIZE)) = BRICK;
-    }
+    // // floor 3
+    // for (int i = 59; i > 46; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(i, 112, WORLD_SIZE)) = BRICK;
+    // }
 
-    // ceiling
-    for (int i = 59; i > 46; i--) {
-        m_level.getWorld().at(PACK_INDEX(i, 106, WORLD_SIZE)) = BRICK;
-    }
+    // // ceiling
+    // for (int i = 59; i > 46; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(i, 106, WORLD_SIZE)) = BRICK;
+    // }
 
-    m_level.getWorld().at(PACK_INDEX(52, 123, WORLD_SIZE)) = AIR;
-    m_level.getWorld().at(PACK_INDEX(54, 123, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(52, 123, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(54, 123, WORLD_SIZE)) = AIR;
 
-    m_level.getWorld().at(PACK_INDEX(52, 117, WORLD_SIZE)) = AIR;
-    m_level.getWorld().at(PACK_INDEX(54, 117, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(52, 117, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(54, 117, WORLD_SIZE)) = AIR;
 
-    m_level.getWorld().at(PACK_INDEX(52, 112, WORLD_SIZE)) = AIR;
-    m_level.getWorld().at(PACK_INDEX(54, 112, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(52, 112, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(54, 112, WORLD_SIZE)) = AIR;
 
-    m_level.getWorld().at(PACK_INDEX(59, 109, WORLD_SIZE)) = AIR;
-    m_level.getWorld().at(PACK_INDEX(59, 110, WORLD_SIZE)) = AIR;
-    m_level.getWorld().at(PACK_INDEX(59, 111, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(59, 109, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(59, 110, WORLD_SIZE)) = AIR;
+    // m_level.getWorld().at(PACK_INDEX(59, 111, WORLD_SIZE)) = AIR;
 
-    m_level.getWorld().at(PACK_INDEX(62, 111, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(63, 111, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(62, 111, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(63, 111, WORLD_SIZE)) = BRICK;
 
-    m_level.getWorld().at(PACK_INDEX(66, 112, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(67, 112, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(68, 112, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(66, 112, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(67, 112, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(68, 112, WORLD_SIZE)) = BRICK;
 
 
-    m_level.getWorld().at(PACK_INDEX(72, 111, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(73, 111, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(74, 111, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(72, 111, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(73, 111, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(74, 111, WORLD_SIZE)) = BRICK;
 
-    for (int i = 126; i > 110; i--) {
-        m_level.getWorld().at(PACK_INDEX(53, i, WORLD_SIZE)) = LADDER;
-    }
+    // for (int i = 126; i > 110; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(53, i, WORLD_SIZE)) = LADDER;
+    // }
 
-    for (int x = 80; x < 91; x++) {
-        m_level.getWorld().at(PACK_INDEX(x, 123, WORLD_SIZE)) = BRICK;
-    }
+    // for (int x = 80; x < 91; x++) {
+    //     m_level.getWorld().at(PACK_INDEX(x, 123, WORLD_SIZE)) = BRICK;
+    // }
 
-    for (int x = 80; x < 91; x++) {
-        m_level.getWorld().at(PACK_INDEX(x, y, WORLD_SIZE)) = BRICK;
-    }
+    // for (int x = 80; x < 91; x++) {
+    //     m_level.getWorld().at(PACK_INDEX(x, y, WORLD_SIZE)) = BRICK;
+    // }
 
-    m_level.getWorld().at(PACK_INDEX(80, 124, WORLD_SIZE)) = BRICK;
-    m_level.getWorld().at(PACK_INDEX(90, 124, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(80, 124, WORLD_SIZE)) = BRICK;
+    // m_level.getWorld().at(PACK_INDEX(90, 124, WORLD_SIZE)) = BRICK;
 
-    // ---------------------
-    for (int x = 108; x < 117; x++) {
-        m_level.getWorld().at(PACK_INDEX(x, y, WORLD_SIZE)) = BRICK;
-    }
+    // // ---------------------
+    // for (int x = 108; x < 117; x++) {
+    //     m_level.getWorld().at(PACK_INDEX(x, y, WORLD_SIZE)) = BRICK;
+    // }
     
-    for (int x = 108; x < 117; x++) {
-        m_level.getWorld().at(PACK_INDEX(x, 121, WORLD_SIZE)) = BRICK;
-    }
+    // for (int x = 108; x < 117; x++) {
+    //     m_level.getWorld().at(PACK_INDEX(x, 121, WORLD_SIZE)) = BRICK;
+    // }
     
-    for (int i = 124; i > 115; i--) {
-        m_level.getWorld().at(PACK_INDEX(108, i, WORLD_SIZE)) = BRICK;
-    }
+    // for (int i = 124; i > 115; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(108, i, WORLD_SIZE)) = BRICK;
+    // }
 
-    for (int i = 124; i > 115; i--) {
-        m_level.getWorld().at(PACK_INDEX(116, i, WORLD_SIZE)) = BRICK;
-    }
+    // for (int i = 124; i > 115; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(116, i, WORLD_SIZE)) = BRICK;
+    // }
 
-    for (int x = 108; x < 116; x++) {
-        m_level.getWorld().at(PACK_INDEX(x, 117, WORLD_SIZE)) = BRICK;
-    }
+    // for (int x = 108; x < 116; x++) {
+    //     m_level.getWorld().at(PACK_INDEX(x, 117, WORLD_SIZE)) = BRICK;
+    // }
 
-    for (int i = 126; i > 115; i--) {
-        m_level.getWorld().at(PACK_INDEX(112, i, WORLD_SIZE)) = LADDER;
-    }
-    // m_level.getWorld().at(PACK_INDEX(108, 124, WORLD_SIZE)) = BRICK;
-    // m_level.getWorld().at(PACK_INDEX(115, 124, WORLD_SIZE)) = BRICK;
+    // for (int i = 126; i > 115; i--) {
+    //     m_level.getWorld().at(PACK_INDEX(112, i, WORLD_SIZE)) = LADDER;
+    // }
+    // // m_level.getWorld().at(PACK_INDEX(108, 124, WORLD_SIZE)) = BRICK;
+    // // m_level.getWorld().at(PACK_INDEX(115, 124, WORLD_SIZE)) = BRICK;
 
-    float x = WORLD_SIZE / 2 - 1;
+    // float x = WORLD_SIZE / 2 - 1;
 
-    // Collectibles
-    m_level.getCollectibles().push_back({{49, 116}, SHOTGUN_COLLECT});
-    m_level.getCollectibles().push_back({{73, 110}, SNIPER_COLLECT});
-    m_level.getCollectibles().push_back({{114, 126}, SHOTGUN_COLLECT});
+    // // Collectibles
+    // m_level.getCollectibles().push_back({{49, 116}, SHOTGUN_COLLECT});
+    // m_level.getCollectibles().push_back({{73, 110}, SNIPER_COLLECT});
+    // m_level.getCollectibles().push_back({{114, 126}, SHOTGUN_COLLECT});
 
-    // Respawn points
-    m_level.addPoint({x, y - 1.f});
-    m_level.addPoint({85, 122});
-    m_level.addPoint({110, 116});
+    // // Respawn points
+    // m_level.addPoint({x, y - 1.f});
+    // m_level.addPoint({85, 122});
+    // m_level.addPoint({110, 116});
+    
+    // std::ofstream world ("world.dat",  std::ios::binary);
 
+    // if (world) {
+    //     uint32_t collSize = (uint32_t)m_level.getCollectibles().size();
+    //     uint32_t spawnSize = (uint32_t)m_level.getSpawnPoins().size();
+
+    //     world.write(reinterpret_cast<const char*>(m_level.getWorld().data()), WORLD_SIZE * WORLD_SIZE);
+    //     world.write(reinterpret_cast<const char*>(&collSize), sizeof(collSize));
+    //     world.write(reinterpret_cast<const char*>(m_level.getCollectibles().data()), m_level.getCollectibles().size() * sizeof(Collectible));
+    //     world.write(reinterpret_cast<const char*>(&spawnSize), sizeof(spawnSize));
+    //     world.write(reinterpret_cast<const char*>(m_level.getSpawnPoins().data()), m_level.getSpawnPoins().size() * sizeof(RVector2));
+        
+    //     world.close();
+    // }
     return update();
 }
 

@@ -48,13 +48,26 @@ public:
     void setAngle(uint32_t id, float angle) { m_players.at(id).angle = angle; }
 
     Texture2D& getBlocksSprite() { return m_blocks; }
+
+    void renderEditor();
+    void updateEditor();
+
+    bool& getEditor() { return m_editor; }
 private:
     Timer m_timer;
     
     Camera2D m_camera;
+    // TODO: ifdef editor?
+    RVector2 m_cameraPos;
+    Block m_currentBlock;
 
     Level m_level;
     bool m_loaded;
+    bool m_editor;
+    bool m_spawn;
+
+    Collectibles m_currentColl;
+    bool m_coll;
 
     uint32_t m_myId;
 

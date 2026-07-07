@@ -301,9 +301,6 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
                 auto type = *(uint8_t*)bytes;
                 bytes++;
-
-                std::cout << "x " << x << "y " << y << std::endl;
-                std::cout << type << std::endl;
                 game.getLevel().addCollectible({{x, y}, (Collectibles) type, 0, y});
             }
 

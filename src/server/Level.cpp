@@ -6,6 +6,7 @@
 #include "Weapons.hpp"
 #include "Server.hpp"
 #include <algorithm>
+#include <fstream>
 
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
@@ -231,4 +232,31 @@ void Level::update() {
             plr.m_player.reload -= 1.f;
         }
     }
+}
+
+void Level::read(const std::string& filepath) {
+    std::ifstream world(filepath, std::ios::binary);
+
+    if (world) {
+        world.read(reinterpret_cast<char*>(m_world.data()),
+            WORLD_SIZE * WORLD_SIZE);
+        
+        uint32_t collSize = 0;
+
+        world.read(reinterpret_cast<char*>(&collSize), sizeof(collSize));
+
+        m_collectibles.resize(collSize);
+
+        world.read(reinterpret_cast<char*>(m_collectibles.data()), collSize * sizeof(Collectible));
+
+        uint32_t spawnpointSize = 0;
+
+        world.read(reinterpret_cast<char*>(&spawnpointSize), sizeof(spawnpointSize));
+
+        m_respawnPoints.resize(spawnpointSize);
+
+        world.read(reinterpret_cast<char*>(m_respawnPoints.data()), spawnpointSize * sizeof(RVector2));
+
+        world.close();
+    }   
 }

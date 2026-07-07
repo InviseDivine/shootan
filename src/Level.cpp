@@ -5,7 +5,56 @@
 #include <raylib.h>
 #include <Game.hpp>
 #include <Utils.hpp>
+#include <fstream>
 
+void Level::write() {
+    std::ofstream world("world.dat", std::ios::binary);
+
+    if (world) {
+        uint32_t collSize = (uint32_t)m_collectiblies.size();
+        uint32_t spawnSize = (uint32_t)m_respawnPoints.size();
+
+        world.write(reinterpret_cast<const char*>(m_world.data()), WORLD_SIZE * WORLD_SIZE);
+        world.write(reinterpret_cast<const char*>(&collSize), sizeof(collSize));
+        world.write(reinterpret_cast<const char*>(m_collectiblies.data()), m_collectiblies.size() * sizeof(Collectible));
+        world.write(reinterpret_cast<const char*>(&spawnSize), sizeof(spawnSize));
+        world.write(reinterpret_cast<const char*>(m_respawnPoints.data()), m_respawnPoints.size() * sizeof(RVector2));
+        
+        world.close();
+    }
+}
+
+void Level::read() {
+    std::ifstream world("world.dat", std::ios::binary);
+    std::cout << "reading" << std::endl;
+
+    if (world) {
+        world.read(reinterpret_cast<char*>(m_world.data()),
+            WORLD_SIZE * WORLD_SIZE);
+        
+        uint32_t collSize = 0;
+
+        world.read(reinterpret_cast<char*>(&collSize), sizeof(collSize));
+
+        m_collectiblies.resize(collSize);
+
+        world.read(reinterpret_cast<char*>(m_collectiblies.data()), collSize * sizeof(Collectible));
+
+        uint32_t spawnpointSize = 0;
+
+        world.read(reinterpret_cast<char*>(&spawnpointSize), sizeof(spawnpointSize));
+
+        m_respawnPoints.resize(spawnpointSize);
+
+        world.read(reinterpret_cast<char*>(m_respawnPoints.data()), spawnpointSize * sizeof(RVector2));
+
+        world.close();
+
+        for (auto& coll : m_collectiblies) {
+            coll.newY = coll.pos.y;
+        }
+    }   
+}
 void Level::drawBlock(Block block, int x, int y) {
     auto& sprite = Game::get().getBlocksSprite();
 
@@ -40,6 +89,7 @@ void Level::render() {
         {bullet.pos.x, bullet.pos.y, size.x, size.y}, {0, 0}, bullet.angle, WHITE);
         // DrawCircleV({}, 0.1f, BLUE);
     }
+    
     static float timee;
 
     timee += GetFrameTime();
@@ -53,6 +103,12 @@ void Level::render() {
 
             DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
             {coll.pos.x, coll.newY - (texHeight / 2), tex.width * 0.02f, texHeight}, {0, 0}, 0, WHITE);
+        }
+    }
+
+    if (game.getEditor()) {
+        for (auto& [x, y] : m_respawnPoints) {
+            DrawRectangleLinesEx({x, y, 1.f, 1.f}, 0.2f, MAROON);
         }
     }
 }

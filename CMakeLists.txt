@@ -16,6 +16,7 @@ set(BUILD_EXAMPLES OFF)
 CPMAddPackage("gh:raysan5/raylib#6.0")
 CPMAddPackage("gh:zpl-c/enet#v2.6.5")
 CPMAddPackage("gh:madler/zlib#v1.3.2")
+CPMAddPackage("gh:raysan5/raygui#master")
 
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/*.cpp
@@ -36,7 +37,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR}/src
     ${CMAKE_SOURCE_DIR}/src/shared
-
+    ${raygui_SOURCE_DIR}/src
 )
 
 target_link_libraries(${PROJECT_NAME}-server PUBLIC enet_static zlibstatic)
