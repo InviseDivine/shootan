@@ -7,6 +7,8 @@
 #include <Utils.hpp>
 #include <fstream>
 
+#define ONSCREEN(maxX, maxY, minX, minY, x, y) y >= minY && y <= maxY && x >= minX && x <= maxX
+
 void Level::write() {
     std::ofstream world("world.dat", std::ios::binary);
 
@@ -67,8 +69,11 @@ void Level::drawBlock(Block block, int x, int y) {
 void Level::render() {
     auto& game = Game::get();
 
-    for (int y = 0; y < WORLD_SIZE; y++) {
-        for (int x = 0; x < WORLD_SIZE; x++) {
+    Vector2 min = GetScreenToWorld2D({0.f, 0.f}, game.getCamera());
+    Vector2 max = GetScreenToWorld2D({(float)GetScreenWidth(), (float)GetScreenHeight()}, game.getCamera());
+
+    for (int y = min.y; y < max.y; y++) {
+        for (int x = min.x; x < max.x; x++) {
             auto block = GetBlock(x, y);
 
             if (block) {
@@ -81,12 +86,14 @@ void Level::render() {
 
     // TODO: Fix bullet pos when shooting
     for (auto& bullet : m_bullets) {
-        auto& bulletTex = game.getTexture((Collectibles) 4);
+        if (ONSCREEN(max.x, max.y, min.x, min.y, bullet.pos.x, bullet.pos.y)) {
+            auto& bulletTex = game.getTexture((Collectibles) 4);
 
-        Vector2 size = {0.3f, 0.2f};
+            Vector2 size = {0.3f, 0.2f};
 
-        DrawTexturePro(bulletTex, {0, 0, (float)bulletTex.width, (float)bulletTex.height}, 
-        {bullet.pos.x, bullet.pos.y, size.x, size.y}, {0, 0}, bullet.angle, WHITE);
+            DrawTexturePro(bulletTex, {0, 0, (float)bulletTex.width, (float)bulletTex.height}, 
+            {bullet.pos.x, bullet.pos.y, size.x, size.y}, {0, 0}, bullet.angle, WHITE);
+        }
         // DrawCircleV({}, 0.1f, BLUE);
     }
     
@@ -95,10 +102,12 @@ void Level::render() {
     timee += GetFrameTime();
 
     for (auto& coll : m_collectiblies) {
-        if (coll.type != 0) {       
-            auto& tex = game.getTexture(coll.type);
+        auto& tex = game.getTexture(coll.type);
+
+        if (ONSCREEN(max.x, max.y, min.x, min.y, coll.pos.x + tex.width * 0.02f, coll.pos.y) && coll.type != 0) {       
             auto texHeight = tex.height * 0.02f;
 
+            std::cout << "render " << std::endl;
             coll.newY = coll.newY + (float)sin(timee) * 0.004f;
 
             DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
@@ -108,7 +117,9 @@ void Level::render() {
 
     if (game.getEditor()) {
         for (auto& [x, y] : m_respawnPoints) {
-            DrawRectangleLinesEx({x, y, 1.f, 1.f}, 0.2f, MAROON);
+            if (ONSCREEN(max.x, max.y, min.x, min.y, x, y)) {
+                DrawRectangleLinesEx({x, y, 1.f, 1.f}, 0.2f, MAROON);
+            }
         }
     }
 }

@@ -349,7 +349,7 @@ void Game::updateEditor() {
     worldMousei.x = (int) worldMouse.x;
     worldMousei.y = (int) worldMouse.y;
 
-    Rectangle bg = { 0 };
+    Rectangle bg = { 0 };   
     bg.width = 200.f;
     bg.height = GetScreenHeight();
     bg.x = GetScreenWidth() - bg.width;
@@ -370,11 +370,11 @@ void Game::updateEditor() {
         }
     }
 
-    if (IsKeyDown(KEY_A) && m_cameraPos.x >= 14) {
+    if (IsKeyDown(KEY_A) && m_cameraPos.x >= 12) {
         m_cameraPos.x -= 0.2f;
     }
 
-    if (IsKeyDown(KEY_D) && m_cameraPos.x < WORLD_SIZE) {
+    if (IsKeyDown(KEY_D) && m_cameraPos.x < WORLD_SIZE - 12) {
         m_cameraPos.x += 0.2f;
     }
 
@@ -382,7 +382,7 @@ void Game::updateEditor() {
         m_cameraPos.y -= 0.2f;
     }
 
-    if (IsKeyDown(KEY_S)) {
+    if (IsKeyDown(KEY_S) && m_cameraPos.y < WORLD_SIZE - 7) {
         m_cameraPos.y += 0.2f;
     }
 

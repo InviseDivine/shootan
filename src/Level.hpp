@@ -23,6 +23,12 @@ public:
         }
     }
 
+    inline void setBlock(Block block, int x, int y) { 
+        if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
+            m_world.at(PACK_INDEX(x, y, WORLD_SIZE)) = block; 
+        } 
+    } 
+
     void addCollectible(Collectible coll) { coll.newY = coll.pos.y; m_collectiblies.push_back(coll); }
     void editCollectible(RVector2 pos, Collectibles type) {        
         for (int i = 0; i < m_collectiblies.size(); i++) {
@@ -51,11 +57,6 @@ public:
         return false;
     }
 
-    void setBlock(Block block, int x, int y) { 
-        if (x >= 0 && x < WORLD_SIZE && y >= 0 && y < WORLD_SIZE) {
-            m_world.at(PACK_INDEX(x, y, WORLD_SIZE)) = block; 
-        } 
-    } 
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE>& getWorld() { return m_world; }
     void setWorld(std::vector<uint8_t> data) { std::copy(data.begin(), data.end(), m_world.begin()); }
     

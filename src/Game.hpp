@@ -53,6 +53,8 @@ public:
     void updateEditor();
 
     bool& getEditor() { return m_editor; }
+    
+    Camera2D& getCamera() { return m_camera; }
 private:
     Timer m_timer;
     
