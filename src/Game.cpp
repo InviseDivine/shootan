@@ -315,7 +315,7 @@ void Game::render() {
             // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
             DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flipClient)},
                 {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, client.angle, WHITE);
-            DrawTextPro(GetFontDefault(), text, {client.x - (MeasureText(text, fontSize) / 2), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
+            DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
         DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flip, (float)plrTex.height}, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
         // DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
@@ -355,6 +355,7 @@ void Game::render() {
     if (IsKeyPressed(KEY_T)) {
         m_chatOpened ^= 1;
     }
+
     auto msgY = GetScreenHeight();
 
     for (int i = m_messages.size(); i > 0; i--) {
