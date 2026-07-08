@@ -19,7 +19,7 @@ CPMAddPackage("gh:madler/zlib#v1.3.2")
 CPMAddPackage("gh:raysan5/raygui#master")
 
 file(GLOB Client
-    ${CMAKE_SOURCE_DIR}/src/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/*.cpp
 )
 
 file(GLOB Server
@@ -35,7 +35,7 @@ add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic)
 target_include_directories(${PROJECT_NAME} PUBLIC
-    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src/client
     ${CMAKE_SOURCE_DIR}/src/shared
     ${raygui_SOURCE_DIR}/src
 )

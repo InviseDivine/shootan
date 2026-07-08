@@ -7,7 +7,34 @@
 #include <Weapons.hpp>
 #include <zlib.h>
 #include <cmath>
+   
+#define PI 3.14159265358979323846f
+#define RAD2DEG (180.0f/PI)
 
+std::array<RVector2, WEAPONS_COUNT> weaponsSize {{
+    {1.2f, 0.72f},  // PISTOL
+    {1.44f, 0.48f},  // SHOTGUN
+    {1.92f, 0.48f}, // SNIPER_RIFLE
+}};
+void sendBullet(Bullet& bullet, float angle) {
+    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8 + 4];
+    addBulletPacket[0] = Header::ADDBULLET;
+    
+    uint32_t size = bullet.id;
+
+    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
+    *(float*)(addBulletPacket + HEADER_SIZE + 4) = bullet.pos.x;
+    *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
+    *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
+    *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
+    *(float*)(addBulletPacket + HEADER_SIZE + 20) = angle;
+
+    auto& srv = Server::get();
+
+    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8 + 4);
+
+    delete [] addBulletPacket;
+}
 void Client::packetReceived(ENetPacket* packet) {
     auto bytes = packet->data;
     auto header = *(Header*)bytes;
@@ -136,7 +163,7 @@ void Client::packetReceived(ENetPacket* packet) {
         playersPacket[1] = (uint8_t)(clients.size() - 1);
         auto packetIndex = 2;
 
-        m_player = {nickname, pos.x, pos.y, 100, 0, {GUN}};
+        m_player = {nickname, pos.x, pos.y, 100, 0, {true}};
 
         for (auto& [id, client] : clients) {
             if (id != m_peer->connectID) {
@@ -164,7 +191,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
         m_loggedIn = true;
 
-        srv.sendServerMessage(std::format("{} joined the server.", nickname));
+        srv.sendServerMessage(std::format("{} joined the server", nickname));
 
         delete[] playersPacket;
         delete[] newPlayerPacket;
@@ -218,48 +245,69 @@ void Client::packetReceived(ENetPacket* packet) {
                 if (m_player.reload <= 0) {
                     auto angle = *(float*)bytes;
                     auto& level = srv.getLevel();
-
-                    RVector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
-                    Weapon& wpn = weapons.at(m_player.currentWeapon);
-
-                    Bullet bullet = Bullet {
-                        {gunPos.x, gunPos.y},   
-                        {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
-                        static_cast<uint32_t>(level.bulletSize()),
-                        0,
-                        wpn.lifeTime, 
-                        m_peer->connectID,
-                        m_player.currentWeapon
+                    RVector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
+                    float cosA = cosf(angle);
+                    float sinA = sinf(angle);
+                    RVector2 gunWorld = {
+                        gunPos.x * cosA - gunPos.y * sinA,
+                        gunPos.x * sinA + gunPos.y * cosA
                     };
-                                    
-                    level.addBullet(bullet);
 
-                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8 + 4];
-                    addBulletPacket[0] = Header::ADDBULLET;
+                    // TODO: Check for walls to muzzle
+                    Weapon& wpn = weapons.at(m_player.currentWeapon);
+                    float angleDeg = angle * RAD2DEG;
+
+                    int flip = !(angleDeg >= -90 && angleDeg < 90) ? -1 : 1;
+                    if (m_player.currentWeapon == SHOTGUN) {
+                        std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
+
+                        for (int i = 0; i < 3; i++) {
+                            auto angl = angle + distr(srv.getLevel().getGen());
+
+                            Bullet bullet = Bullet {
+                                {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
+                                {cosf(angl) * wpn.bulletSpeed, sinf(angl) * wpn.bulletSpeed}, 
+                                static_cast<uint32_t>(level.bulletSize()),
+                                0,
+                                wpn.lifeTime, 
+                                m_peer->connectID,
+                                m_player.currentWeapon
+                            };
+                                
+                            level.addBullet(bullet);
+
+                            sendBullet(bullet, angl);
+                        }
+
+                        m_player.reload = wpn.reloadTime;
+                    } else {
+                        Bullet bullet = Bullet {
+                            {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
+                            {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
+                            static_cast<uint32_t>(level.bulletSize()),
+                            0,
+                            wpn.lifeTime, 
+                            m_peer->connectID,
+                            m_player.currentWeapon
+                        };
+                            
+                        level.addBullet(bullet);
+
+                        sendBullet(bullet, angle);
+                        m_player.reload = wpn.reloadTime;
+                    }
                     
-                    uint32_t size = bullet.id;
-
-                    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 4) = bullet.pos.x;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 20) = angle;
-
-                    auto& srv = Server::get();
-
-                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8 + 4);
-
-                    m_player.reload = wpn.reloadTime;
-                    
-                    delete [] addBulletPacket;
                     break;
                 }
             };
             case UPDATEWEAPON: {
                 auto index = *(uint8_t*)bytes;
 
-                if (index > m_player.inventory.size() || index > WEAPONS_COUNT || m_player.currentWeapon == index) {
+                if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
+                    return;
+                }
+
+                if (m_player.inventory.at(index) == false) {
                     return;
                 }
 
@@ -269,7 +317,7 @@ void Client::packetReceived(ENetPacket* packet) {
                 auto updateWeapon = new char[weaponSize];
 
                 updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = m_player.inventory.at(index);
+                updateWeapon[1] = index;
                 *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
 
                 srv.broadcast(updateWeapon, weaponSize);

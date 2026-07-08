@@ -41,6 +41,10 @@ public:
     int bulletSize() { return m_bullets.size(); }
 
     void read(const std::string& filepath);
+
+    std::mt19937& getGen() { return m_gen; }
+
+    void restartGame();
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_background;

@@ -101,6 +101,19 @@ struct Collectible {
     bool isSent;
 };
 
+enum Sprite {
+    PISTOL_SPRITE = 0,
+    SHOTGUN_SPRITE,
+    BULLET_SPRITE,
+    SNIPER_RIFLE_SPRITE,
+    PLAYER_SPRITE,
+    WIZARD_HAT_SPRITE,
+    MEDKIT_SPRITE,
+    LUFFY_HAT_SPRITE,
+    COOL_SUNGLASSES_HAT_SPRITE,
+    SPRITES_COUNT
+};
+
 struct Player {
     std::string nickname;
     
@@ -109,8 +122,8 @@ struct Player {
 
     uint8_t currentWeapon;
 
-    // std::array<uint8_t, WEAPONS_COUNT> inventory;
-    std::vector<uint8_t> inventory;
+    std::array<bool, WEAPONS_COUNT> inventory;
+
     RVector2 speed;
 
     bool onGround;
@@ -120,6 +133,8 @@ struct Player {
     float reload;
 
     float angle;
+    
+    uint8_t hat;
 };
 
 struct Bullet {

@@ -9,6 +9,7 @@
 #include <thread>
 #include <Weapons.hpp>
 #include <raygui.h>
+#include "ResourceManager.hpp"
 
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
@@ -28,24 +29,16 @@ void Game::init(std::string nickname) {
 
     SetTargetFPS(60);
 
-    // m_editor = 1;
+    m_editor = 1;
 
     SetExitKey(KEY_NULL);
 
-    m_player = {nickname, 1, 61, 100, 0, {GUN}, {0, 0}, true};
+    m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true};
 
     // TODO: ResourceManager
-    m_textures.at(GUN) = LoadTexture("assets/pistol.png");
-    m_textures.at(SHOTGUN) = LoadTexture("assets/shotgun.png");
-    m_textures.at(SNIPER_RIFLE) = LoadTexture("assets/sniper.png");
-    m_textures.at(SNIPER_RIFLE + 1) = LoadTexture("assets/player.png");
-    m_textures.at(SNIPER_RIFLE + 2) = LoadTexture("assets/bullet.png");
-    m_blocks = LoadTexture("assets/blocks.png");
-    
-    SetTextureFilter(m_textures.at(GUN), TEXTURE_FILTER_BILINEAR);
-    SetTextureFilter(m_textures.at(SHOTGUN), TEXTURE_FILTER_BILINEAR);
-    SetTextureFilter(m_textures.at(SNIPER_RIFLE), TEXTURE_FILTER_BILINEAR);
-    SetTextureFilter(m_blocks, TEXTURE_FILTER_POINT);
+    auto& rm = ResourceManager::get();
+    rm.init();
+
     Image icon = LoadImage("assets/ico.png");    
     SetWindowIcon(icon);
     UnloadImage(icon);    
@@ -88,8 +81,37 @@ void Game::update() {
     auto width = GetScreenWidth();
     auto height = GetScreenHeight();
 
-    m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };
+    auto mousePos = GetMousePosition();
+    
     m_camera.target = Vector2 {m_player.x, m_player.y};
+
+    if (m_player.currentWeapon == SNIPER_RIFLE) {
+        static Vector2 zoom = { 0 };
+
+        Rectangle boxLeft = { 0 };
+        boxLeft.width = 200.f;
+        boxLeft.height = GetScreenHeight();
+        boxLeft.x = GetScreenWidth() - boxLeft.width;
+        boxLeft.y = 0;
+
+        Rectangle boxRight = { 0 };
+        boxRight.width = 200.f;
+        boxRight.height = GetScreenHeight();
+        boxRight.x = 0;
+        boxRight.y = 0;
+
+        if (CheckCollisionPointRec(mousePos, boxRight) && m_camera.offset.x < width / 2.0f + 200) {
+            zoom.x += 10.f;
+        } 
+
+        if (CheckCollisionPointRec(mousePos, boxLeft) && m_camera.offset.x > width / 2.0f - 200) {
+            zoom.x -= 10.f;
+        } 
+
+        m_camera.offset = Vector2 { width / 2.0f + zoom.x, height / 2.0f + zoom.y};  
+    } else {
+        m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };  
+    }
     
     Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
     Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
@@ -198,9 +220,21 @@ void Game::update() {
 
         if (IsKeyPressed(KEY_ESCAPE)) m_chatOpened ^= 1;
     }
-    
-    // std::cout << m_player.x << std::endl;
-    // std::cout << m_player.y << std::endl;
+    float wheel = GetMouseWheelMove();
+
+    if (wheel != 0.f) {
+        auto move = (wheel < 0.f) ? -1 : 1;
+
+        auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+        updateWeapon[0] = UPDATEWEAPON;
+        updateWeapon[1] = m_player.currentWeapon + move < 0 ? WEAPONS_COUNT - 1 : m_player.currentWeapon + move;
+        
+        auto& mp = Multiplayer::get();
+        
+        mp.sendPacket(updateWeapon, 2, true);
+        
+        delete [] updateWeapon;
+    }
 
     if (m_loaded) {
         if (m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) != LADDER ||
@@ -263,7 +297,7 @@ void Game::update() {
 
         if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
 
-        if (m_player.speed.x > -0.005f && m_player.speed.x < 0.005f) m_player.speed.x = 0;
+        if (m_player.speed.x > -0.05f && m_player.speed.x < 0.05f) m_player.speed.x = 0;
         m_player.speed.x *= 0.91f;
         m_player.speed.y *= 0.98f;
     }
@@ -295,34 +329,33 @@ void Game::render() {
         delete [] anglePacket;
     }
 
-    int flip = !(angle >= -90 && angle < 90) ? -1 : 1;
-    
+    int flip = !(angle >= -90 && angle < 90) ? 1 : 0;
+
+    auto& rm = ResourceManager::get();
+
     BeginMode2D(m_camera);
         m_level.render();
-        auto& plrTex = m_textures.at(SNIPER_RIFLE + 1);
-
         for (auto& [_, client] : m_players) {  
-            auto& tex = m_textures.at(client.currentWeapon);
 
             auto fontSize = 0.5f;
             auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
             float spacing = 0.05f;
 
-            int flipClient = client.angle >= 90 && client.angle < 270 ? -1 : 1;
+            int flipClient = !(client.angle >= -90 && client.angle < 90) ? 1 : 0;
 
-            DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flipClient, (float)plrTex.height}, 
-            {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
-            // DrawRectangleRec({client.x, client.y, 1.f, 1.f}, MAROON);   
-            DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flipClient)},
-                {client.x + 0.5f, client.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, client.angle, WHITE);
+            rm.drawSpriteFromSheet(PLAYER_SPRITE, {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flipClient);
+
+            rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
+
             DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
         }
-        DrawTexturePro(plrTex, {0, 0, (float)plrTex.width * flip, (float)plrTex.height}, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE);
+        rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
+
         // DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
-        
-        auto& tex = m_textures.at(m_player.inventory.at(m_player.currentWeapon));
-        DrawTexturePro(tex, {0, 0, static_cast<float>(tex.width), static_cast<float>(tex.height * flip)},
-            {m_player.x + 0.5f, m_player.y + 0.5f, 1.5f, 1.5f}, {0.75f, 0.75f}, angle, WHITE);
+        rm.drawSpriteFromSheet(WIZARD_HAT_SPRITE, {m_player.x, m_player.y - 1.f, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
+
+        rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
+
     EndMode2D();
     
     // Debug info
@@ -333,12 +366,30 @@ void Game::render() {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
     
-    auto hpText = TextFormat("HP: %d", m_player.hp);
+    Rectangle hpBarBg = { 0 };
+    hpBarBg.width = 4 * 100;
+    hpBarBg.height = 25;
+    hpBarBg.x = GetScreenWidth() - hpBarBg.width;
+    hpBarBg.y = 0;
 
-    DrawText(hpText, GetScreenWidth() - MeasureText(hpText, 20), 0, 20, WHITE);
+    Rectangle hpBar = { 0 };
+    hpBar.width = 4 * m_player.hp;
+    hpBar.height = hpBarBg.height;
+    hpBar.x = GetScreenWidth() - hpBarBg.width;
+    hpBar.y = 0;
+    
+    Color color = m_player.hp > 60 ? GREEN : m_player.hp > 25 ? ORANGE : RED;
+    Color lines = m_player.hp > 60 ? DARKGREEN : m_player.hp > 25 ? Color {128, 78, 4, 255} : Color {107, 4, 4, 255};
+
+    DrawRectangleRec(hpBarBg, BLACK);
+    DrawRectangleRec(hpBar, color);
+    DrawRectangleLinesEx(hpBarBg, 5, lines);
+    auto hpText = TextFormat("HP: %d", m_player.hp);
+    
+    DrawText(hpText, (hpBarBg.width - MeasureText(hpText, 20)) / 2 + hpBarBg.x, 4, 20, WHITE);
     Rectangle chatBar = { 0 };
 
-    chatBar.width = GetScreenWidth();
+    chatBar.width = GetScreenWidth();   
     chatBar.height = 50.f;
     chatBar.x = 0;
     chatBar.y = GetScreenHeight() - chatBar.height;
@@ -352,7 +403,7 @@ void Game::render() {
     }
 
     // It should before GuiTextBox
-    if (IsKeyPressed(KEY_T)) {
+    if (IsKeyPressed(KEY_T) && !m_chatOpened) {
         m_chatOpened ^= 1;
     }
 
@@ -369,6 +420,28 @@ void Game::render() {
 
         if (msg.lifeTime > 0) {
             msg.lifeTime -= 10.f;
+        }
+    }
+
+    float weaponY = GetScreenHeight();
+
+    for (int i = 0; i < WEAPONS_COUNT; i++) {
+        if (m_player.inventory.at(i)) {
+            auto sprite = rm.getWeaponSprite((Weapons) i);
+            auto& size = rm.getSpriteSize(sprite);
+            Vector2 destSize = {size.x * 4, size.y * 4};
+
+            Rectangle src = { 0 };
+            src.width = destSize.x;
+            src.height = destSize.y;
+            src.x = GetScreenWidth() - destSize.x;
+            src.y = weaponY - destSize.y;
+
+            Color color = i == m_player.currentWeapon ? WHITE : Color {255, 255, 255, 130};
+
+            rm.drawSpriteFromSheet(sprite, src, {0, 0}, 0, color);
+
+            weaponY -= destSize.y + 10.f;
         }
     }
 
@@ -422,12 +495,16 @@ void Game::updateEditor() {
     if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
     if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
     
-    for (int i = 0; i < BLOCKS_COUNT; i++) {
-        if (IsKeyPressed(KEY_ONE + i)) {
-            if (!m_coll) {
+    if (m_coll) {
+        for (int i = 0; i < COLLECTIBLIES_COUNT; i++) {
+            if (IsKeyPressed(KEY_ONE + i)) {
+                m_currentColl = (Collectibles) i; 
+            }
+        }
+    } else {
+        for (int i = 0; i < BLOCKS_COUNT; i++) {
+            if (IsKeyPressed(KEY_ONE + i)) {
                 m_currentBlock = (Block) i; 
-            } else {
-                m_currentColl = (Collectibles) i;
             }
         }
     }
@@ -544,16 +621,20 @@ void Game::renderEditor() {
     auto blockTextY = respawnButton.y + padding + fontSize;
 
     DrawText(text, bg.x + fontSize, blockTextY, fontSize, WHITE);
-    float blockX = ((m_currentBlock - 1) % 16) * 8.f;
-    float blockY = ((m_currentBlock - 1) / 16) * 8.f;
+
+    auto pad = m_currentBlock ? 48.f : 0;
+
+    float modeTextY = blockTextY + padding + fontSize + pad;
+
+    auto currMode = m_coll ? "Collectibles" : m_spawn ? "Spawnpoints" : "Blocks";
+
+    DrawText(TextFormat("Current mode:\n%s", currMode), bg.x + fontSize, modeTextY, fontSize, WHITE);
+
+    auto& rm = ResourceManager::get();
 
     if (m_currentBlock == 0) {
         DrawText("Air", bg.x + fontSize, blockTextY + fontSize, fontSize, WHITE);
     } else {
-        DrawTexturePro(m_blocks, 
-            {blockX, blockY, 8.f, 8.f}, 
-            {bg.x + 48, blockTextY + padding, 48.f, 48.f},
-            {0, 0}, 
-            0, WHITE);
+        rm.drawBlock((Block)(m_currentBlock - 1), {bg.x + 48, blockTextY + padding, 48.f, 48.f}, WHITE);
     }
 }

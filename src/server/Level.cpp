@@ -8,6 +8,23 @@
 #include <algorithm>
 #include <fstream>
 
+void Level::restartGame() {
+    auto& srv = Server::get();
+    
+    for (auto& [id, plr] : srv.getClients()) {
+        plr.m_player.score = 0;
+        
+        auto& pos = getRandomSpawn();
+
+        plr.m_player.x = pos.x;
+        plr.m_player.y = pos.y;
+        plr.m_player.inventory = {true};
+        plr.m_player.reload = 0;
+        plr.m_player.hp = 100;
+        plr.m_player.currentWeapon = 0;
+    }
+}
+
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
     bool collision = false;
@@ -44,7 +61,7 @@ void sendHpPacket(uint32_t id, Player& plr, Server& srv) {
 Level::Level() {
     std::random_device rd;
     m_gen = std::mt19937(rd());
-    m_scoreLimit = 25;
+    m_scoreLimit = 20;
 }
 
 inline void removeBulletPacket(uint32_t index, Server& srv) {
@@ -64,7 +81,7 @@ void Level::update() {
 
     // Collectibles
     for (auto& coll : m_collectibles) {
-        for (auto& [_, plr] : srv.getClients()) {
+        for (auto& [id, plr] : srv.getClients()) {
             if (coll.respawnTime > 0) {
                 if (coll.isSent) {
                     // TODO: Put it to function
@@ -105,18 +122,20 @@ void Level::update() {
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
                         plr.m_player.hp += 15;
+
+                        sendHpPacket(id, plr.m_player, srv);
                     } else {
                         // TODO: it can be better?
                         switch (coll.type) {
                             case SHOTGUN_COLLECT: {
                                 auto& inv = plr.m_player.inventory;
 
-                                if (std::find(inv.begin(), inv.end(), SHOTGUN) == inv.end()) {
+                                if (inv.at(SHOTGUN) == false) {
                                     auto weaponShotgun = new char[HEADER_SIZE + 1];
                                     weaponShotgun[0] = ADDWEAPON;
                                     weaponShotgun[1] = SHOTGUN;
 
-                                    plr.m_player.inventory.push_back(SHOTGUN);
+                                    plr.m_player.inventory.at(SHOTGUN) = true;
 
                                     plr.sendPacketTo(weaponShotgun, 2);
                                 } else {
@@ -129,12 +148,12 @@ void Level::update() {
                             case SNIPER_COLLECT: {
                                 auto& inv = plr.m_player.inventory;
 
-                                if (std::find(inv.begin(), inv.end(), SNIPER_RIFLE) == inv.end()) {
+                                if (inv.at(SNIPER_RIFLE) == false) {
                                     auto weaponShotgun = new char[HEADER_SIZE + 1];
                                     weaponShotgun[0] = ADDWEAPON;
                                     weaponShotgun[1] = SNIPER_RIFLE;
 
-                                    plr.m_player.inventory.push_back(SNIPER_RIFLE);
+                                    plr.m_player.inventory.at(SNIPER_RIFLE) = true;
 
                                     plr.sendPacketTo(weaponShotgun, 2);
                                 } else {

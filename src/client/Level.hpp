@@ -120,7 +120,7 @@ public:
     }
 
     void drawBlock(Block block, int x, int y, Color color = WHITE);
-
+    
     void read();
     void write();
 private:

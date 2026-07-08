@@ -5,8 +5,10 @@
 #include <Game.hpp>
 #include <Utils.hpp>
 #include <fstream>
+#include <ResourceManager.hpp>
 
 #define ONSCREEN(maxX, maxY, minX, minY, x, y) y >= minY && y <= maxY && x >= minX && x <= maxX
+
 
 void Level::write() {
     std::ofstream world("world.dat", std::ios::binary);
@@ -61,12 +63,9 @@ void Level::read() {
     }   
 }
 void Level::drawBlock(Block block, int x, int y, Color color) {
-    auto& sprite = Game::get().getBlocksSprite();
+    auto& rm = ResourceManager::get();
 
-    int xSrc = (block % 16) * 8.f;
-    int ySrc = (block / 16) * 8.f;
-    
-    DrawTexturePro(sprite, {(float)xSrc, (float)ySrc, 8.f, 8.f}, {(float)x, (float)y, 1.f, 1.f}, {0, 0}, 0, color);
+    rm.drawBlockWorld(block, {(float)x, (float)y}, color);
 }
 
 void Level::render() {
@@ -74,6 +73,7 @@ void Level::render() {
 
     Vector2 min = GetScreenToWorld2D({0.f, 0.f}, game.getCamera());
     Vector2 max = GetScreenToWorld2D({(float)GetScreenWidth(), (float)GetScreenHeight()}, game.getCamera());
+    auto& rm = ResourceManager::get();
 
     for (int y = min.y; y < max.y; y++) {
         for (int x = min.x; x < max.x; x++) {
@@ -95,17 +95,10 @@ void Level::render() {
         }
     }
 
-    // TODO: Fix bullet pos when shooting
     for (auto& bullet : m_bullets) {
         if (ONSCREEN(max.x, max.y, min.x, min.y, bullet.pos.x, bullet.pos.y)) {
-            auto& bulletTex = game.getTexture((Collectibles) 4);
-
-            Vector2 size = {0.3f, 0.2f};
-
-            DrawTexturePro(bulletTex, {0, 0, (float)bulletTex.width, (float)bulletTex.height}, 
-            {bullet.pos.x, bullet.pos.y, size.x, size.y}, {0, 0}, bullet.angle, WHITE);
+            rm.drawSpriteFromSheet(BULLET_SPRITE, {bullet.pos.x, bullet.pos.y, 0.3f, 0.2f}, {0, 0}, bullet.angle, WHITE);
         }
-        // DrawCircleV({}, 0.1f, BLUE);
     }
     
     static float timee;
@@ -113,16 +106,22 @@ void Level::render() {
     timee += GetFrameTime();
 
     for (auto& coll : m_collectiblies) {
-        auto& tex = game.getTexture(coll.type);
+        // auto& tex = game.getTexture(coll.type);
+        // auto texHeight = tex.height * 0.02f;
 
-        if (ONSCREEN(max.x, max.y, min.x, min.y, coll.pos.x + tex.width * 0.02f, coll.pos.y) && coll.type != 0) {       
-            auto texHeight = tex.height * 0.02f;
+        // if (
+        //     (ONSCREEN(max.x, max.y, min.x, min.y, coll.pos.x + tex.width * 0.02f, coll.pos.y + texHeight) ||
+        //     ONSCREEN(max.x, max.y, min.x, min.y, coll.pos.x - tex.width * 0.02f, coll.pos.y - texHeight))
 
-            coll.newY = coll.newY + (float)sin(timee) * 0.002f;
+        // && coll.type != 0) {       
 
-            DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
-            {coll.pos.x, coll.newY - (texHeight / 2), tex.width * 0.02f, texHeight}, {0, 0}, 0, WHITE);
-        }
+        coll.newY = coll.newY + (float)sin(timee) * 0.002f;
+
+            // DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
+            // {coll.pos.x, coll.newY - (texHeight / 2), tex.width * 0.02f, texHeight}, {0, 0}, 0, WHITE);
+        // }
+        
+        rm.drawCollectible(coll.type, {coll.pos.x, coll.newY}, WHITE);  
     }
 
     if (game.getEditor()) {
