@@ -122,7 +122,8 @@ void Level::update() {
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
                         plr.m_player.hp += 15;
-
+                        if (plr.m_player.hp > 100) plr.m_player.hp = 100;
+                        
                         sendHpPacket(id, plr.m_player, srv);
                     } else {
                         // TODO: it can be better?

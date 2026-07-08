@@ -29,7 +29,7 @@ void Game::init(std::string nickname) {
 
     SetTargetFPS(60);
 
-    m_editor = 1;
+    // m_editor = 1;
 
     SetExitKey(KEY_NULL);
 
