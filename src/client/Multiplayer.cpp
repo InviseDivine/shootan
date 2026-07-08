@@ -7,6 +7,25 @@
 #include <enet.h>
 #include <iostream>
 #include <zlib.h>
+#include "ErrorScene.hpp"
+
+std::string Multiplayer::getStringReason() {
+    switch (m_reason) {
+        case -2: {
+            return "Timeout";
+        }
+
+        case WRONG_HEADER: {
+            return "Wrong header";
+        }
+
+        case NICKNAME_TOO_LONG: {
+            return "Nickname too long";
+        }
+
+        default: return "Unknown reason";
+    }
+}
 
 void Multiplayer::init(std::string nickname, std::string ip, int port) {
     if (enet_initialize() != 0) {
@@ -51,8 +70,8 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
         return;
     }
-
     std::cout << "Connected" << std::endl;
+
 
     m_connected = true;
 
@@ -73,7 +92,7 @@ void Multiplayer::update() {
     
     ENetEvent event;
 
-    while (true) {
+    while (!disconnected) {
         while(enet_host_service (m_client, &event, 0) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_RECEIVE: {
@@ -86,14 +105,20 @@ void Multiplayer::update() {
                 case ENET_EVENT_TYPE_DISCONNECT: {
                     printf("Disconnection succeeded. \n");
                     disconnected = true;
+                    m_reason = *(uint8_t*)(event.data);
 
+                    break;
+                }
+                case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                    printf("Disconnection due to timeout. \n");
+                    disconnected = true;
+
+                    m_reason = -2;
                     break;
                 }
                 case ENET_EVENT_TYPE_NONE:
                     break;
                 case ENET_EVENT_TYPE_CONNECT:
-                    break;
-                case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT:
                     break;
             }
         }
@@ -104,6 +129,10 @@ void Multiplayer::update() {
     if (!disconnected) {
         enet_peer_reset(m_peer);
     }
+
+    auto& game = Game::get();
+
+    game.pushScene(std::make_shared<ErrorScene>());
 }
 
 void Multiplayer::handlePacket(ENetPacket* packet) {     

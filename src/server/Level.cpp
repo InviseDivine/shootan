@@ -102,29 +102,16 @@ void Level::update() {
                 
                 coll.respawnTime -= 1.f;
             } else {
-                if (!coll.isSent) {
-                    // TODO: Put it to function
-                    auto size = HEADER_SIZE + sizeof(float) * 2 + sizeof(Collectible);
-                    auto sendCollectible = new char[size];
-
-                    sendCollectible[0] = UPDATECOLLECTIBLE;
-
-                    *(float*)(sendCollectible + HEADER_SIZE) = coll.pos.x;
-                    *(float*)(sendCollectible + HEADER_SIZE + 4) = coll.pos.y;
-                    *(Collectibles*)(sendCollectible + HEADER_SIZE + 8) = coll.type;
-
-                    srv.broadcast(sendCollectible, size);
-                    
-                    delete [] sendCollectible;
-                    coll.isSent = true;
-                }
-                
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
-                        plr.m_player.hp += 15;
-                        if (plr.m_player.hp > 100) plr.m_player.hp = 100;
-                        
-                        sendHpPacket(id, plr.m_player, srv);
+                        if (plr.m_player.hp < 100) {
+                            plr.m_player.hp += 15;
+                            if (plr.m_player.hp > 100) plr.m_player.hp = 100;
+                            
+                            sendHpPacket(id, plr.m_player, srv);
+                        } else {
+                            continue;
+                        }
                     } else {
                         // TODO: it can be better?
                         switch (coll.type) {
@@ -168,6 +155,23 @@ void Level::update() {
                     }
 
                     coll.respawnTime = 600.f;
+                }
+
+                if (!coll.isSent) {
+                    // TODO: Put it to function
+                    auto size = HEADER_SIZE + sizeof(float) * 2 + sizeof(Collectible);
+                    auto sendCollectible = new char[size];
+
+                    sendCollectible[0] = UPDATECOLLECTIBLE;
+
+                    *(float*)(sendCollectible + HEADER_SIZE) = coll.pos.x;
+                    *(float*)(sendCollectible + HEADER_SIZE + 4) = coll.pos.y;
+                    *(Collectibles*)(sendCollectible + HEADER_SIZE + 8) = coll.type;
+
+                    srv.broadcast(sendCollectible, size);
+                    
+                    delete [] sendCollectible;
+                    coll.isSent = true;
                 }
             }
         }

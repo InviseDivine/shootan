@@ -23,11 +23,14 @@ public:
 
     void sendPacket(char* data, int size, bool reliable);
 
+    std::string getStringReason();
 private:
     ENetHost* m_client;
     ENetPeer* m_peer;
 
     bool m_connected;
     
+    int m_reason;
+
     void update();
 };

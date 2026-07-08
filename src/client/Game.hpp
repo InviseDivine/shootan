@@ -5,10 +5,11 @@
 #include <raylib.h>
 #include <unordered_map>
 #include <Level.hpp>
+#include <ui/Scene.hpp>
 
 class Game {
 public:
-    Game() : m_timer(TICKS) {}
+    Game() : m_timer(TICKS), m_scene(nullptr) {}
 
     static inline Game& get() {
         static Game inst;
@@ -48,7 +49,18 @@ public:
     Camera2D& getCamera() { return m_camera; }
 
     void addMessage(std::string msg) { m_messages.push_back({msg, 5000.f}); }
+
+    void updatePlayer();
+
+    void clearScene() { m_scene = nullptr; }
+    void pushScene(std::shared_ptr<Scene> scene) {  m_scene = scene; };
+
+    void startMpThread();
+
+    void cleanup();
 private:
+    std::shared_ptr<Scene> m_scene;
+
     Timer m_timer;
     
     Camera2D m_camera;
@@ -60,6 +72,7 @@ private:
     bool m_loaded;
     bool m_editor;
     bool m_spawn;
+    bool m_testmode;
 
     Collectibles m_currentColl;
     bool m_coll;

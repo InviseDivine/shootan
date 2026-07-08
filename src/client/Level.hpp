@@ -119,6 +119,7 @@ public:
         });
     }
 
+    std::vector<RVector2>& getSpawnpoints() { return m_respawnPoints; }
     void drawBlock(Block block, int x, int y, Color color = WHITE);
     
     void read();

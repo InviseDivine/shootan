@@ -114,6 +114,10 @@ enum Sprite {
     SPRITES_COUNT
 };
 
+enum DisconnectReason {
+    WRONG_HEADER = 0,
+    NICKNAME_TOO_LONG,
+};
 struct Player {
     std::string nickname;
     

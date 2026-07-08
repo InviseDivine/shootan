@@ -20,6 +20,8 @@ CPMAddPackage("gh:raysan5/raygui#master")
 
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/client/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/client/ui/*.cpp
+
 )
 
 file(GLOB Server
@@ -30,12 +32,18 @@ file(GLOB Shared
     ${CMAKE_SOURCE_DIR}/src/shared/*.cpp
 )
 
-add_executable(${PROJECT_NAME} ${Client} ${Shared})
+if(WIN32)
+    add_executable(${PROJECT_NAME} ${Client} ${Shared} gameinfo.rc)
+else()
+    add_executable(${PROJECT_NAME} ${Client} ${Shared})
+endif()
+
 add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
 
 target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR}/src/client
+    ${CMAKE_SOURCE_DIR}/src/client/ui
     ${CMAKE_SOURCE_DIR}/src/shared
     ${raygui_SOURCE_DIR}/src
 )

@@ -47,6 +47,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
     if (!m_loggedIn) {
         if (header != AUTH) {
+            enet_peer_disconnect(m_peer, 0);
             return;
         }
 
