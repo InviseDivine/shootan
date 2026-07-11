@@ -66,7 +66,10 @@ enum Block : uint8_t {
     BRICK,
     LADDER,
     STONE_BRICK,
-
+    GLASS,
+    LEAVES,
+    WOOD,
+    
     BLOCKS_COUNT
 };
 

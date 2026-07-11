@@ -15,12 +15,11 @@ namespace Gui {
         bool isFocused() { return m_focused; }
 
         virtual void draw() = 0;
-        
-        friend class Scene;
+
+        void setScene(Scene* scene) { m_scene = scene; }
     protected:
         Rectangle m_bounds;
         Scene* m_scene;
         bool m_focused;
-
     };
 };

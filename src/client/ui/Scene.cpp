@@ -2,7 +2,7 @@
 #include "elements/Element.hpp"
 
 void Scene::registerElement(Gui::Element* element) {
-    element->m_scene = this;
+    element->setScene(this);
     m_elements.push_back(element);
 }
 
