@@ -7,7 +7,7 @@
 void ErrorScene::render() {
     auto reason = Multiplayer::get().getStringReason();
 
-    auto fontSize = 35;
+    auto fontSize = 30;
 
     auto text = TextFormat("Sadly you was disconnected :( Reason: %s", reason.c_str());
 
