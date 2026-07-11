@@ -11,6 +11,7 @@ public:
     void buttonClicked(Gui::Button* button);
 protected:
     Gui::Textbox m_username;
+    Gui::Textbox m_ip;
     Gui::Button  m_play;
     Gui::Button  m_editor;
     Gui::Button  m_arrowRight;

@@ -55,7 +55,7 @@ public:
     void clearScene() { m_scene.reset(); }
     void pushScene(std::shared_ptr<Scene> scene) {  m_scene = scene; };
 
-    void startMpThread();
+    void startMpThread(std::string srv);
 
     void cleanup();
 

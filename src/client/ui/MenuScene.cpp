@@ -27,7 +27,7 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
     m_username.setString(game.getPlayer().nickname);
     registerElement(&m_username);
 
-    Rectangle image = {(GetScreenWidth() - 48.f) / 2.f, (GetScreenHeight() - 48.f) / 2.f - 10.f - 48.f, 48.f, 48.f};
+    Rectangle image = {(GetScreenWidth() - 48.f) / 2.f, (GetScreenHeight() - 48.f) / 2.f - 40.f - 48.f, 48.f, 48.f};
     m_player.setBounds(image);
     
     Rectangle arrow = {image.x + image.width + 24.f, image.y + 12.f, 24.f, 24.f};
@@ -43,6 +43,11 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
 
     m_hat.setBounds(image);
     registerElement(&m_hat);
+
+    bounds.y += bounds.height + 10.f;
+    m_ip.setBounds(bounds);
+    m_ip.setString("sffempire.ru");
+    registerElement(&m_ip);
 
     bounds.y += bounds.height + 10.f;
     m_play.setBounds(bounds);
@@ -66,9 +71,11 @@ void MenuScene::buttonClicked(Gui::Button* button) {
     auto& game = Game::get();
     
     if (button == &m_play) {
-        game.exitEditor();
-        game.startMpThread();
-        game.clearScene();
+        if (!m_ip.getString().empty()) {
+            game.exitEditor();
+            game.startMpThread(m_ip.getString());
+            game.clearScene();   
+        }
         return;
     }
 

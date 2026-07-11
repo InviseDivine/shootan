@@ -88,11 +88,26 @@ void Game::cleanup() {
     memset(m_message, 0, sizeof(m_message));
 }
 
-void Game::startMpThread() {
+void Game::startMpThread(std::string srv) {
     cleanup();
+    
+    std::stringstream ss(srv);
+    
+    std::vector<std::string> result;
+    std::string token;
+
+    while (std::getline(ss, token, ':')) {
+        result.push_back(token);
+    }
+    
+    std::string ip = result.at(0);
+    int port = result.size() > 1 ? std::stoi(result.at(1)) : 6890;
+
+    std::cout << ip << std::endl;
+    std::cout << port << std::endl;
 
     auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
+    std::thread(&Multiplayer::init, &mp, m_player.nickname, ip, port).detach();
 }
 
 void Game::updatePlayer() {
@@ -211,13 +226,13 @@ void Game::init(std::string nickname) {
     m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true};
     m_player.hat = WIZARD_HAT;
 
-    if (!m_editor) {
-        startMpThread();
-    } else {
-        m_level.read();
-    }
+    // if (!m_editor) {
+    //     startMpThread();
+    // } else {
+    //     m_level.read();
+    // }
 
-    // m_scene = std::make_shared<MenuScene>();
+    m_scene = std::make_shared<MenuScene>();
 
     m_camera = { 0 };
 

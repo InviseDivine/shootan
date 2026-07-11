@@ -23,7 +23,7 @@ void ErrorScene::render() {
     if (GuiButton(reconnect, "Reconnect")) {
         auto& game = Game::get();
 
-        game.startMpThread();
+        game.startMpThread("sffempire.ru");
         game.clearScene();
     }
 }
