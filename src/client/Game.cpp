@@ -11,6 +11,7 @@
 #include <raygui.h>
 #include "ResourceManager.hpp"
 #include <cstring>
+#include <MenuScene.hpp>
 
 void Game::setEnd(bool end, uint32_t id) {
     m_end = end;
@@ -202,18 +203,20 @@ void Game::init(std::string nickname) {
     SetWindowIcon(icon);
     UnloadImage(icon);    
 
-    GuiSetStyle(DEFAULT, TEXT_SIZE, 25);
+    GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
 
     auto& rm = ResourceManager::get();
     rm.init();
 
     m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true};
 
-    if (!m_editor) {
-        startMpThread();
-    } else {
-        m_level.read();
-    }
+    // if (!m_editor) {
+    //     startMpThread();
+    // } else {
+    //     m_level.read();
+    // }
+
+    m_scene = std::make_shared<MenuScene>();
 
     m_camera = { 0 };
 

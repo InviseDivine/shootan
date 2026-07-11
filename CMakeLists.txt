@@ -21,7 +21,7 @@ CPMAddPackage("gh:raysan5/raygui#master")
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/client/*.cpp
     ${CMAKE_SOURCE_DIR}/src/client/ui/*.cpp
-
+    ${CMAKE_SOURCE_DIR}/src/client/ui/elements/*.cpp
 )
 
 file(GLOB Server

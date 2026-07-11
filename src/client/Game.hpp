@@ -65,6 +65,9 @@ public:
     void setMyHp(int hp);
     
     void setEnd(bool end, uint32_t id);
+
+    void enterEditor() { m_editor = true; }
+    void exitEditor() { m_editor = false; }
 private:
     std::shared_ptr<Scene> m_scene;
 
