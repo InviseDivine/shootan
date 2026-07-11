@@ -72,7 +72,6 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
         return;
     }
-    nickname.resize(strlen(nickname.c_str()));
     std::cout << "Connected" << std::endl;
 
     m_connected = true;

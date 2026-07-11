@@ -17,6 +17,7 @@ void MenuScene::setHatBounds(Hat hat) {
     m_hat.setSpriteId(rm.getHatSprite(game.getPlayer().hat)); 
     m_hat.setBounds(bounds);
 }
+
 MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(SPRITES_COUNT), m_player(PLAYER_SPRITE), m_arrowLeft("<"), m_arrowRight(">") {
     setColor(RAYWHITE);
 
@@ -27,6 +28,7 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
     m_username.setString(game.getPlayer().nickname);
     registerElement(&m_username);
 
+    // TODO: Label for hats choose
     Rectangle image = {(GetScreenWidth() - 48.f) / 2.f, (GetScreenHeight() - 48.f) / 2.f - 40.f - 48.f, 48.f, 48.f};
     m_player.setBounds(image);
     
@@ -61,11 +63,10 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
 void MenuScene::textEdited(Gui::Textbox* textbox, std::string str) {
     auto& game = Game::get();
 
-    // FIXME: Capacity doesnt work
-    // if (textbox == &m_username) {
-    //     game.getPlayer().nickname = str;
-    //     return;
-    // }
+    if (textbox == &m_username) {
+        game.getPlayer().nickname = str;
+        return;
+    }
 }
 
 void MenuScene::buttonClicked(Gui::Button* button) {

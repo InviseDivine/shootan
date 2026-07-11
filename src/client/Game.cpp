@@ -105,6 +105,7 @@ void Game::startMpThread(std::string srv) {
     
     std::string ip = result.at(0);
     int port = result.size() > 1 ? std::stoi(result.at(1)) : 6890;
+    m_player.nickname.resize(strlen(m_player.nickname.c_str()));
 
     auto& mp = Multiplayer::get();
     std::thread(&Multiplayer::init, &mp, m_player.nickname, ip, port).detach();
