@@ -5,7 +5,7 @@
 MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode") {
     setColor(WHITE);
 
-    auto game = Game::get();
+    auto& game = Game::get();
 
     Rectangle bounds = {(GetScreenWidth() - 200.f) / 2.f, (GetScreenHeight() - 22.f) / 2.f, 200.f, 22.f};
     m_username.setBounds(bounds);
@@ -22,7 +22,7 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode") {
 }
 
 void MenuScene::textEdited(Gui::Textbox* textbox, std::string str) {
-    auto game = Game::get();
+    auto& game = Game::get();
 
     if (textbox == &m_username) {
         game.getPlayer().nickname = str;
@@ -31,8 +31,8 @@ void MenuScene::textEdited(Gui::Textbox* textbox, std::string str) {
 }
 
 void MenuScene::buttonClicked(Gui::Button* button) {
-    auto game = Game::get();
-
+    auto& game = Game::get();
+    
     if (button == &m_play) {
         game.exitEditor();
         game.startMpThread();
