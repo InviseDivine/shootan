@@ -7,7 +7,6 @@ void Scene::registerElement(Gui::Element* element) {
 }
 
 void Scene::render() {
-    if (!this) return;
     for (auto& el : m_elements) {
         el->draw();
     }

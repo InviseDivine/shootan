@@ -263,6 +263,11 @@ void Game::init(std::string nickname) {
                 }
             }
         EndDrawing();
+
+        if (m_cleanScene) {
+            m_scene = nullptr;
+            m_cleanScene = false;
+        }
     }
 }
 void Game::update() {

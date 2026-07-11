@@ -52,7 +52,7 @@ public:
 
     void updatePlayer();
 
-    void clearScene() { m_scene.reset(); }
+    void clearScene() { m_cleanScene = true; }
     void pushScene(std::shared_ptr<Scene> scene) {  m_scene = scene; };
 
     void startMpThread(std::string srv);
@@ -69,6 +69,7 @@ public:
     void enterEditor() { m_editor = true; }
     void exitEditor() { m_editor = false; }
 private:
+    bool m_cleanScene;
     std::shared_ptr<Scene> m_scene;
 
     Timer m_timer;
