@@ -7,6 +7,7 @@
 #include <Weapons.hpp>
 #include <zlib.h>
 #include <cmath>
+#include <iostream>
    
 #define PI 3.14159265358979323846f
 #define RAD2DEG (180.0f/PI)
@@ -51,15 +52,20 @@ void Client::packetReceived(ENetPacket* packet) {
             return;
         }
 
+        auto hat = *(Hat*)bytes;
+        bytes++;
+
         auto& clients = srv.getClients();
 
-        auto nicknameLen = packet->dataLength - 1;
+        auto nicknameLen = packet->dataLength - 2;
 
         if (nicknameLen > 30) {
             // TODO: Send error to client and disconnect it
             return;
         }
 
+        std::cout << hat << std::endl;
+        
         auto nickname = new char[nicknameLen];
 
         memcpy(nickname, bytes, nicknameLen);
@@ -131,7 +137,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
         sendPacketTo(levelPacket, lvlSize);
         
-        auto newPlayerSize = HEADER_SIZE + nicknameLen + sizeof(float) * 2 + sizeof(uint32_t);
+        auto newPlayerSize = HEADER_SIZE + nicknameLen + sizeof(float) * 2 + sizeof(uint32_t) + sizeof(Hat);
         auto newPlayerPacket = new char[newPlayerSize];
 
         newPlayerPacket[0] = ADDPLAYER;
@@ -149,6 +155,10 @@ void Client::packetReceived(ENetPacket* packet) {
         // peerID
         *(uint32_t*)(newPlayerPacket + newPlrIndex) = m_peer->connectID;
         newPlrIndex += 4;
+
+        // Hat
+        *(Hat*)(newPlayerPacket + newPlrIndex) = hat;
+        newPlrIndex++;
 
         // nickname
         memcpy(newPlayerPacket + (newPlayerSize - nicknameLen), bytes, nicknameLen);

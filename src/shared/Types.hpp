@@ -105,7 +105,7 @@ struct Collectible {
     bool isSent;
 };
 
-enum Hat {
+enum Hat : uint8_t {
     NONE_HAT = 0,
     WIZARD_HAT,
     LUFFY_HAT,

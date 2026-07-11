@@ -209,14 +209,15 @@ void Game::init(std::string nickname) {
     rm.init();
 
     m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true};
+    m_player.hat = WIZARD_HAT;
 
-    // if (!m_editor) {
-    //     startMpThread();
-    // } else {
-    //     m_level.read();
-    // }
+    if (!m_editor) {
+        startMpThread();
+    } else {
+        m_level.read();
+    }
 
-    m_scene = std::make_shared<MenuScene>();
+    // m_scene = std::make_shared<MenuScene>();
 
     m_camera = { 0 };
 

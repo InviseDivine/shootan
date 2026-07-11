@@ -28,6 +28,8 @@ std::string Multiplayer::getStringReason() {
 }
 
 void Multiplayer::init(std::string nickname, std::string ip, int port) {
+    auto& game = Game::get();
+
     if (enet_initialize() != 0) {
         fprintf(stderr, "An error occurred while initializing ENet.\n");
         exit(EXIT_FAILURE);
@@ -75,14 +77,15 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
     m_connected = true;
 
-    auto loginPacket = new char[HEADER_SIZE + nickname.length() + 1];
-    memset(loginPacket, 0, HEADER_SIZE + nickname.length() + 1);
+    auto loginPacket = new char[HEADER_SIZE + nickname.length() + 2];
+    memset(loginPacket, 0, HEADER_SIZE + nickname.length() + 2);
 
     loginPacket[0] = Header::AUTH;
+    loginPacket[1] = game.getPlayer().hat;
 
-    memcpy(loginPacket + 1, nickname.data(), nickname.length());
+    memcpy(loginPacket + 2, nickname.data(), nickname.length());
 
-    sendPacket(loginPacket, HEADER_SIZE + nickname.length() + 1, ENET_PACKET_FLAG_RELIABLE);
+    sendPacket(loginPacket, HEADER_SIZE + nickname.length() + 2, ENET_PACKET_FLAG_RELIABLE);
 
     update();
 }
@@ -197,7 +200,10 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             auto id = *(uint32_t*)bytes;
             bytes += 4;
             
-            auto nameLen = packet->dataLength - 13;
+            auto hat = *(Hat*)bytes;
+            bytes++;
+            
+            auto nameLen = packet->dataLength - 14;
             
             auto name = new char[nameLen];
             name[nameLen - 1] = 0;
@@ -212,7 +218,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 game.getPlayer().y = y;
             } else {
                 auto p = Player(name, x, y, 100);
-
+                p.hat = hat;
                 game.addPlayer(id, p);
             }
 
