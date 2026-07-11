@@ -60,5 +60,5 @@ jobs:
       - name: Upload server build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shootan-server${{ matrix.os }}
+          name: shootan-server-${{ matrix.os }}
           path: srv/
