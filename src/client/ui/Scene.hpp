@@ -7,6 +7,7 @@ namespace Gui {
     class Element;
     class Textbox;
     class Button;
+    class Image;
 };
 
 class Scene {

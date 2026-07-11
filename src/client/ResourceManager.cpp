@@ -3,6 +3,24 @@
 float const zoom = 0.06f;
 
 // public
+const Vector2 ResourceManager::getHatPos(Hat hat) {
+    switch (hat) {
+        case WIZARD_HAT: return {0, -8};
+        case LUFFY_HAT: return {0, -6};
+        case COOL_SUNGLASSES_HAT: return {0, 1};
+        default: return {0, 0};
+    }
+}
+
+const Sprite ResourceManager::getHatSprite(Hat hat) {
+    switch (hat) {
+        case WIZARD_HAT: return WIZARD_HAT_SPRITE;
+        case LUFFY_HAT: return LUFFY_HAT_SPRITE;
+        case COOL_SUNGLASSES_HAT: return COOL_SUNGLASSES_HAT_SPRITE;
+        default: return SPRITES_COUNT;
+    }
+}
+
 void ResourceManager::init() {
     m_spritesheet = LoadTexture("assets/spritesheet.png");
     m_blocks = LoadTexture("assets/blocks.png");
@@ -133,4 +151,6 @@ Rectangle ResourceManager::getSrc(Sprite index, bool flip) {
 
         return src;
     }
+
+    return { 0 };
 }

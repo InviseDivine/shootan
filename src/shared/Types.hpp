@@ -105,6 +105,15 @@ struct Collectible {
     bool isSent;
 };
 
+enum Hat {
+    NONE_HAT = 0,
+    WIZARD_HAT,
+    LUFFY_HAT,
+    COOL_SUNGLASSES_HAT,
+
+    HATS_COUNT
+};
+
 enum Sprite {
     PISTOL_SPRITE = 0,
     SHOTGUN_SPRITE,
@@ -144,7 +153,7 @@ struct Player {
 
     float angle;
     
-    uint8_t hat;
+    Hat hat;
 };
 
 struct Bullet {

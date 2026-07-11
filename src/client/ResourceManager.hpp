@@ -32,6 +32,10 @@ public:
     const Vector2& getSpriteSize(Sprite index);
 
     const Sprite getWeaponSprite(Weapons weapon);
+
+    const Sprite getHatSprite(Hat hat);
+
+    const Vector2 getHatPos(Hat hat);
 private:
     Texture2D m_spritesheet;
     Texture2D m_blocks;
