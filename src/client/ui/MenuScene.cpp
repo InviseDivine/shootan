@@ -83,7 +83,7 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         auto& rm = ResourceManager::get();
         auto& hat = game.getPlayer().hat;
 
-        if (hat == 0) {
+        if (hat - 1 < 0) {
             hat = (Hat)(HATS_COUNT - 1);
         } else {
             hat = (Hat)(hat - 1);
@@ -96,12 +96,14 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         auto& rm = ResourceManager::get();
         auto& hat = game.getPlayer().hat;
 
+        hat = (Hat)(hat + 1);
+
         if (hat >= HATS_COUNT) {
             hat = NONE_HAT;
-        } else {
-            hat = (Hat)(hat + 1);
         }
-        
+
         setHatBounds(hat);
+
+        std::cout << hat << std::endl;
     }  
 }
