@@ -89,6 +89,7 @@ void Game::cleanup() {
 }
 
 void Game::startMpThread(std::string srv) {
+    // TODO: Connecting screen
     cleanup();
     
     std::stringstream ss(srv);
@@ -102,9 +103,6 @@ void Game::startMpThread(std::string srv) {
     
     std::string ip = result.at(0);
     int port = result.size() > 1 ? std::stoi(result.at(1)) : 6890;
-
-    std::cout << ip << std::endl;
-    std::cout << port << std::endl;
 
     auto& mp = Multiplayer::get();
     std::thread(&Multiplayer::init, &mp, m_player.nickname, ip, port).detach();

@@ -14,7 +14,7 @@ class Scene {
 protected:
     Color m_bgColor = BLACK;
     std::list<Gui::Element*> m_elements;
-
+    friend class Element;
 public:
     Scene() {};
     virtual ~Scene() = default;
