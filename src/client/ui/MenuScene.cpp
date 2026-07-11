@@ -90,6 +90,7 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         }
 
         setHatBounds(hat);
+        return;
     }
 
     if (button == &m_arrowRight) {
@@ -103,7 +104,6 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         }
 
         setHatBounds(hat);
-
-        std::cout << hat << std::endl;
+        return;
     }  
 }
