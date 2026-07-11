@@ -44,13 +44,21 @@ jobs:
         shell: bash
         run: |
           mkdir -p dist
+          mkdir -p srv
+
           find build -type f \( -name "shooter" -o -name "shooter.exe" \) -exec cp {} dist/ \;
-          find build -type f \( -name "shooter-server" -o -name "shooter-server.exe" \) -exec cp {} dist/ \;
+          find build -type f \( -name "shooter-server" -o -name "shooter-server.exe" \) -exec cp {} srv/ \;
 
           cp -r assets dist/
 
-      - name: Upload build artifact
+      - name: Upload client build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.os }}-build
+          name: shootan-${{ matrix.os }}
           path: dist/
+
+      - name: Upload server build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: shootan-server${{ matrix.os }}
+          path: srv/
