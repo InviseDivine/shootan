@@ -3,13 +3,16 @@ name: Build
 on:
   push:
     branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-latest, macos-latest]
         build_type: [Release]
 
     runs-on: ${{ matrix.os }}
@@ -37,13 +40,15 @@ jobs:
       - name: Build
         run: cmake --build ${{ github.workspace }}/build --config ${{ matrix.build_type }} --parallel
 
+      - name: Prepare distribution folder
+        shell: bash
+        run: |
+          mkdir -p dist
+          find build -type f \( -name "shooter" -o -name "shooter.exe" \) -exec cp {} dist/ \;
+          cp -r assets dist/
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: shootan-${{ matrix.os }}
-          path: |
-            shooter-server
-            shooter
-            shooter.exe
-            shooter-server.exe
-            assets/
+          name: ${{ matrix.os }}-build
+          path: dist/
