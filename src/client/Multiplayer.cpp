@@ -72,10 +72,15 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
         return;
     }
+    nickname.resize(strlen(nickname.c_str()));
     std::cout << "Connected" << std::endl;
 
-
     m_connected = true;
+
+    std::cout << nickname << std::endl;
+
+    std::cout << nickname.length() << std::endl;
+    std::cout << nickname.size() << std::endl;
 
     auto loginPacket = new char[HEADER_SIZE + nickname.length() + 2];
     memset(loginPacket, 0, HEADER_SIZE + nickname.length() + 2);
@@ -83,7 +88,7 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
     loginPacket[0] = Header::AUTH;
     loginPacket[1] = game.getPlayer().hat;
 
-    memcpy(loginPacket + 2, nickname.data(), nickname.length());
+    memcpy(loginPacket + 2, nickname.c_str(), nickname.length());
 
     sendPacket(loginPacket, HEADER_SIZE + nickname.length() + 2, ENET_PACKET_FLAG_RELIABLE);
 
@@ -182,8 +187,11 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 auto weapon = *(uint8_t*)bytes;
                 bytes++;
 
+                auto hat = *(uint8_t*)bytes;
+                bytes++;
+
                 auto p = Player(name, x, y, hp, weapon);
-                
+                p.hat = (Hat) hat;
                 game.addPlayer(id, p);
             }
 

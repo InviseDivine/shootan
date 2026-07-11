@@ -30,7 +30,6 @@ void Level::write() {
 
 void Level::read() {
     std::ifstream world("world.dat", std::ios::binary);
-    std::cout << "reading" << std::endl;
 
     if (world) {
         world.read(reinterpret_cast<char*>(m_world.data()),

@@ -57,14 +57,16 @@ void Client::packetReceived(ENetPacket* packet) {
 
         auto& clients = srv.getClients();
 
+        std::cout << packet->dataLength << std::endl;
+
         auto nicknameLen = packet->dataLength - 2;
+
+        std::cout << nicknameLen << std::endl;
 
         if (nicknameLen > 30) {
             // TODO: Send error to client and disconnect it
             return;
         }
-
-        std::cout << hat << std::endl;
         
         auto nickname = new char[nicknameLen];
 
@@ -175,6 +177,7 @@ void Client::packetReceived(ENetPacket* packet) {
         auto packetIndex = 2;
 
         m_player = {nickname, pos.x, pos.y, 100, 0, {true}};
+        m_player.hat = hat;
 
         for (auto& [id, client] : clients) {
             if (id != m_peer->connectID) {
@@ -194,6 +197,8 @@ void Client::packetReceived(ENetPacket* packet) {
                 *(int*)(playersPacket + packetIndex) = client.m_player.hp;
                 packetIndex += 4;
                 *(uint8_t*)(playersPacket + packetIndex) = client.m_player.currentWeapon;
+                packetIndex++;
+                *(uint8_t*)(playersPacket + packetIndex) = client.m_player.hat;
                 packetIndex++;
             } 
         }

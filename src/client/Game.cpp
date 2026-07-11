@@ -80,7 +80,9 @@ void Game::setMyHp(int hp) {
 
 void Game::cleanup() {
     m_level = Level();
+    auto hat = m_player.hat;
     m_player = {m_player.nickname, 0, 0, 100, 0, {true}};
+    m_player.hat = hat;
     m_messages.clear();
     m_players.clear();
     m_myId = 0;
@@ -221,11 +223,10 @@ void Game::init(std::string nickname) {
     auto& rm = ResourceManager::get();
     rm.init();
 
-    m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true};
-    m_player.hat = WIZARD_HAT;
+    m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true}; 
 
     // if (!m_editor) {
-    //     startMpThread();
+    //     startMpThread("localhost");
     // } else {
     //     m_level.read();
     // }
@@ -478,6 +479,12 @@ void Game::render() {
 
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flipClient);
 
+            auto& hatPos = rm.getHatPos(client.hat);
+            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
+
+            rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+            {0, 0}, 0, WHITE, flipClient);
+
             rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
 
             DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
@@ -485,7 +492,11 @@ void Game::render() {
         rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
 
         // DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
-        rm.drawSpriteFromSheet(WIZARD_HAT_SPRITE, {m_player.x, m_player.y - 1.f, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
+        auto& hatPos = rm.getHatPos(m_player.hat);
+        auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
+
+        rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+        {0, 0}, 0, WHITE, flip);
 
         rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
 
@@ -772,6 +783,11 @@ void Game::renderEditor() {
 
         if (m_testmode) {
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
+            auto& hatPos = rm.getHatPos(m_player.hat);
+            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
+
+            rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+            {0, 0}, 0, WHITE, flip);
         }
     EndMode2D();    
 

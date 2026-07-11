@@ -61,10 +61,11 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
 void MenuScene::textEdited(Gui::Textbox* textbox, std::string str) {
     auto& game = Game::get();
 
-    if (textbox == &m_username) {
-        game.getPlayer().nickname = str;
-        return;
-    }
+    // FIXME: Capacity doesnt work
+    // if (textbox == &m_username) {
+    //     game.getPlayer().nickname = str;
+    //     return;
+    // }
 }
 
 void MenuScene::buttonClicked(Gui::Button* button) {
@@ -105,7 +106,7 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         auto& hat = game.getPlayer().hat;
 
         hat = (Hat)(hat + 1);
-
+        
         if (hat >= HATS_COUNT) {
             hat = NONE_HAT;
         }
