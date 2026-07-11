@@ -146,6 +146,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
     auto& game = Game::get();
     switch(header) {    
+        // NOTE: Because ENet has big fucking scructure of packet, maybe better if we merge some of headers
         case AUTH: {
             printf("Collecting players \n");
 
@@ -304,6 +305,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case LEVEL:  {
+            // Setting end here because when round ends server changes map
+
             auto size = *(uint32_t*)bytes;
             bytes += 4;
 
@@ -370,11 +373,11 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             bytes += 4;
             auto score = *(int*)bytes;
             bytes += 4;
-
+        
             if (id != game.getMyId()) {
                 game.setScore(id, score);
             } else {
-                game.getPlayer().score = score;
+                game.addNotification(score);
             }
             
             break;
@@ -389,7 +392,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             if (id != game.getMyId()) {
                 game.setHp(id, hp);
             } else {
-                game.getPlayer().hp = hp;
+                game.setMyHp(hp);
             }
 
             break;
@@ -420,6 +423,27 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             break;
         }
 
+        case DAMAGE: {
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+            auto damage = *(int*)bytes;
+            bytes += 4;
+
+            game.addNotification(id, damage);
+
+            break;
+        }
+
+        case ROUNDEND: {                
+            auto id = *(uint32_t*)bytes;
+            bytes += 4; 
+
+            if (id == 0) {
+                game.setEnd(false, 0);
+            } else {
+                game.setEnd(true, id);
+            }
+        }
         default: break;
     }
 }

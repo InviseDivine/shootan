@@ -47,5 +47,6 @@ private:
         {0, 27, 11, 10}, // MEDKIT_SPRITE
         {44, 0, 8, 6},   // LUFFY_HAT_SPRITE
         {52, 0, 7, 6},   // COOL_SUNGLASSES_HAT_SPRITE
+        {8, 20, 7, 7},   // CROWN_SPRITE
     }};
 };

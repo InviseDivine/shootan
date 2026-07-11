@@ -48,7 +48,7 @@ public:
     
     Camera2D& getCamera() { return m_camera; }
 
-    void addMessage(std::string msg) { m_messages.push_back({msg, 5000.f}); }
+    void addMessage(std::string msg) { m_messages.push_back({msg, 5000.f, 255}); }
 
     void updatePlayer();
 
@@ -58,17 +58,25 @@ public:
     void startMpThread();
 
     void cleanup();
+
+    void addNotification(int score);
+    void addNotification(uint32_t id, int damage);
+
+    void setMyHp(int hp);
+    
+    void setEnd(bool end, uint32_t id);
 private:
     std::shared_ptr<Scene> m_scene;
 
     Timer m_timer;
     
     Camera2D m_camera;
-    // TODO: ifdef editor?
     RVector2 m_cameraPos;
-    Block m_currentBlock;
 
     Level m_level;
+
+    // Editor
+    Block m_currentBlock;
     bool m_loaded;
     bool m_editor;
     bool m_spawn;
@@ -77,15 +85,28 @@ private:
     Collectibles m_currentColl;
     bool m_coll;
 
+    // Multiplayer
     uint32_t m_myId;
 
     Player m_player;
     std::unordered_map<uint32_t, Player> m_players;
 
+    bool m_end;
+    uint32_t m_winner;
+
+    // Visual
+    std::vector<Message> m_killsNotifications;
+    
     char m_message[255];
     std::vector<Message> m_messages;
     bool m_chatOpened;
 
+    bool m_died;
+    unsigned char m_alpha;
+    float m_diedTicks;
+    
     void update();
     void render();
+
+    void drawScore();
 };

@@ -29,7 +29,7 @@ int Server::init() {
     }
 
     printf("Starting server on port %d...\n", address.port);
-
+    
     m_level.read("world.dat");
 
     return update();

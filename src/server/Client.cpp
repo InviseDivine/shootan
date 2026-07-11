@@ -47,7 +47,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
     if (!m_loggedIn) {
         if (header != AUTH) {
-            enet_peer_disconnect(m_peer, 0);
+            // enet_peer_disconnect(m_peer, 0);
             return;
         }
 
@@ -211,7 +211,6 @@ void Client::packetReceived(ENetPacket* packet) {
                 m_player.x = x;
                 m_player.y = y;
 
-                
                 if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
                     auto& lvl = srv.getLevel();
                     auto& pos = lvl.getRandomSpawn();

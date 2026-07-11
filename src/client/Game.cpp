@@ -11,6 +11,71 @@
 #include <raygui.h>
 #include "ResourceManager.hpp"
 
+void Game::setEnd(bool end, uint32_t id) {
+    m_end = end;
+    if (id == 0) {
+        for (auto& [id, plr] : m_players) {
+            plr.currentWeapon = 0;
+            plr.hp = 100;
+            plr.score = 0;
+        }
+
+        m_player.hp = 100;
+        m_player.score = 0;
+        m_player.currentWeapon = 0;
+        m_player.inventory = {true};
+        
+        m_winner = 0;
+    } else {
+        m_winner = id;
+    }
+}
+// TODO: Sort by score
+void Game::drawScore() {
+    auto& rm = ResourceManager::get();
+
+    float x = 75;
+    float y = 75;
+
+    float width = GetScreenWidth() - x * 2;
+    float height = GetScreenHeight() - y * 2;
+    
+    Rectangle bg = {x, y, width, height};
+
+    DrawRectangleRec(bg, {0, 0, 0, 180});
+    auto count = 0;
+
+    DrawText("Score", width - x - 10, y + 10, 40, WHITE);
+    auto txt = TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score);
+
+    DrawText(txt, x + 40, y + 40, 20, WHITE);
+
+    if (m_winner == m_myId) {
+        rm.drawSpriteFromSheet(CROWN_SPRITE, {x + 40 + MeasureText(txt, 20) + 20, y + 40, 20.f, 20.f}, {0, 0}, 0, WHITE);
+    }
+
+    for (auto& [id, client] : m_players) {
+        float yClient = y + 20 * count + 60;
+        auto text = TextFormat("%s - %d", client.nickname.c_str(), client.score);
+
+        DrawText(text, x + 40, yClient, 20, WHITE);
+
+        if (m_winner == id) {
+            rm.drawSpriteFromSheet(CROWN_SPRITE, {x + 40 + MeasureText(text, 20) + 20, yClient, 20.f, 20.f}, {0, 0}, 0, WHITE);
+        }
+        count++;
+    }
+}
+void Game::setMyHp(int hp) {
+    m_player.hp = hp;
+
+    if (hp == 100) {
+        m_alpha = 255;
+        m_died = true;
+        m_diedTicks = 200.f;
+    }
+}
+
 void Game::cleanup() {
     m_level = Level();
     m_player = {m_player.nickname, 0, 0, 100, 0, {true}};
@@ -25,7 +90,7 @@ void Game::startMpThread() {
     cleanup();
 
     auto& mp = Multiplayer::get();
-    std::thread(&Multiplayer::init, &mp, m_player.nickname, "sffempire.ru", 6890).detach();
+    std::thread(&Multiplayer::init, &mp, m_player.nickname, "localhost", 6890).detach();
 }
 
 void Game::updatePlayer() {
@@ -94,6 +159,22 @@ void Game::updatePlayer() {
     m_player.speed.y *= 0.98f;
 }
 
+void Game::addNotification(uint32_t id, int damage) {
+    auto plr = m_players.at(id);
+    Vector2 pos = GetWorldToScreen2D(Vector2 { plr.x + 1.f, plr.y + 0.5f }, m_camera);
+
+    m_killsNotifications.push_back(Message {std::format("-{}", damage), 0, 255, {pos.x, pos.y}});
+}
+
+void Game::addNotification(int score) {
+    m_player.score = score;
+
+    float x = std::rand() % (GetScreenWidth() - 40); 
+    float y = std::rand() % (GetScreenHeight() - 40);
+
+    m_killsNotifications.push_back(Message {"+1 Kill", 0, 255, {x, y}});
+}
+
 void Game::sendMovePacket() {
     auto moveSize = HEADER_SIZE + sizeof(float) * 2;
     auto movePacket = new char[moveSize];
@@ -122,7 +203,6 @@ void Game::init(std::string nickname) {
 
     GuiSetStyle(DEFAULT, TEXT_SIZE, 25);
 
-    // TODO: ResourceManager
     auto& rm = ResourceManager::get();
     rm.init();
 
@@ -443,7 +523,7 @@ void Game::render() {
         auto& msg = m_messages.at(i - 1);
 
         if (m_chatOpened || msg.lifeTime > 0) {
-            DrawText(msg.text.c_str(), 0, msgY - 20 - chatBar.height, 20, WHITE);
+            DrawText(msg.text.c_str(), 0, msgY - 20 - chatBar.height, 20, {255, 255, 255, msg.alpha});
             
             msgY -= 30;
         }
@@ -475,27 +555,40 @@ void Game::render() {
         }
     }
 
-    if (IsKeyDown(KEY_TAB)) {
-        float x = 75;
-        float y = 75;
+    for (int i = 0; i < m_killsNotifications.size(); i++) {
+        auto& notf = m_killsNotifications.at(i);
 
-        float width = GetScreenWidth() - x * 2;
-        float height = GetScreenHeight() - y * 2;
-        
-        Rectangle bg = {x, y, width, height};
+        if (notf.alpha > 0) {
+            DrawText(notf.text.c_str(), notf.pos.x, notf.pos.y, 20, {255, 255, 255, notf.alpha});
 
-        DrawRectangleRec(bg, {0, 0, 0, 180});
-        auto count = 0;
-
-        DrawText("Score", width - x - 10, y + 10, 40, WHITE);
-        
-        DrawText(TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score), x + 40, y + 40, 20, WHITE);
-
-        for (auto& [_, client] : m_players) {
-            DrawText(TextFormat("%s - %d", client.nickname.c_str(), client.score), x + 40, y + 20 * count + 60, 20, WHITE);
-            count++;
+            notf.alpha -= 5;
+            notf.pos.y -= 1.f;
+        } else {
+            m_killsNotifications.erase(m_killsNotifications.begin() + i);
         }
     }
+
+    if (m_died) {
+        if (m_alpha > 0) {
+            m_alpha -= 5;
+        } else {
+            m_alpha = 0;
+        }
+        if (m_diedTicks > 0) {
+            m_diedTicks -= 0.5f;
+
+            auto fontSize = 30;
+            auto text = "You died!";
+            auto width = MeasureText(text, fontSize);
+            DrawText("You died!", (GetScreenWidth() - width) / 2, GetScreenHeight() / 2, fontSize, {255, m_alpha, m_alpha, m_alpha});
+        } else {
+            m_died = false;
+        }
+    }
+
+    if (IsKeyDown(KEY_TAB) || m_end) {
+        drawScore();
+    }    
 }
 
 void Game::updateEditor() {
@@ -739,6 +832,34 @@ void Game::renderEditor() {
 
             m_player.x = m_level.getSpawnpoints().at(0).x;
             m_player.y = m_level.getSpawnpoints().at(0).y;
+        }
+
+        Rectangle blocksButton = { 0 };
+        blocksButton.width = bg.width - padding;
+        blocksButton.height = padding;
+        blocksButton.x = bg.x + (padding / 2);
+        blocksButton.y = padding * 9 + 20;
+
+        if (GuiButton(blocksButton, "Blocks")) {
+            float x = 75;
+            float y = 75;
+
+            float width = GetScreenWidth() - x * 2;
+            float height = GetScreenHeight() - y * 2;
+            
+            Rectangle bg = {x, y, width, height};
+
+            DrawRectangleRec(bg, {0, 0, 0, 180});
+            auto count = 0;
+
+            DrawText("Score", width - x - 10, y + 10, 40, WHITE);
+            
+            DrawText(TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score), x + 40, y + 40, 20, WHITE);
+
+            for (auto& [_, client] : m_players) {
+                DrawText(TextFormat("%s - %d", client.nickname.c_str(), client.score), x + 40, y + 20 * count + 60, 20, WHITE);
+                count++;
+            } 
         }
     } else {
         DrawText("Press Q to return in editor", 0, 0, 20, WHITE);

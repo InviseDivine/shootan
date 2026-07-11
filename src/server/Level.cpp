@@ -8,23 +8,6 @@
 #include <algorithm>
 #include <fstream>
 
-void Level::restartGame() {
-    auto& srv = Server::get();
-    
-    for (auto& [id, plr] : srv.getClients()) {
-        plr.m_player.score = 0;
-        
-        auto& pos = getRandomSpawn();
-
-        plr.m_player.x = pos.x;
-        plr.m_player.y = pos.y;
-        plr.m_player.inventory = {true};
-        plr.m_player.reload = 0;
-        plr.m_player.hp = 100;
-        plr.m_player.currentWeapon = 0;
-    }
-}
-
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
     bool collision = false;
@@ -58,12 +41,6 @@ void sendHpPacket(uint32_t id, Player& plr, Server& srv) {
     delete [] sendHp;
 }
 
-Level::Level() {
-    std::random_device rd;
-    m_gen = std::mt19937(rd());
-    m_scoreLimit = 20;
-}
-
 inline void removeBulletPacket(uint32_t index, Server& srv) {
     auto removeBullet = new char[HEADER_SIZE + sizeof(index)];
 
@@ -76,9 +53,67 @@ inline void removeBulletPacket(uint32_t index, Server& srv) {
     delete [] removeBullet;
 }
 
+Level::Level() {
+    std::random_device rd;
+    m_gen = std::mt19937(rd());
+    m_scoreLimit = 10;
+}
+
+void Level::restartGame() {
+    auto& srv = Server::get();
+    
+    // TODO: one packet for update
+    for (auto& [id, plr] : srv.getClients()) {
+        plr.m_player.score = 0;
+
+        // pos
+        auto& pos = getRandomSpawn();
+
+        plr.m_player.x = pos.x;
+        plr.m_player.y = pos.y;
+
+        auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(id);
+        auto movePlrPacket = new char[moveSize];
+        
+        movePlrPacket[0] = MOVE;
+        
+        *(uint32_t*)(movePlrPacket + 1) = id;
+        *(float*)(movePlrPacket + 5) = plr.m_player.x;
+        *(float*)(movePlrPacket + 9) = plr.m_player.y;
+
+        srv.broadcast(movePlrPacket, moveSize);
+        
+        delete [] movePlrPacket;
+
+        plr.m_player.inventory = {true};
+        plr.m_player.reload = 0;
+        plr.m_player.hp = 100;
+        plr.m_player.currentWeapon = 0;
+
+        auto endSize = HEADER_SIZE + sizeof(uint32_t);
+        auto endPacket = new char[endSize];
+
+        endPacket[0] = Header::ROUNDEND;
+
+        *(uint32_t*)(endPacket + HEADER_SIZE) = 0;
+
+        plr.sendPacketTo(endPacket, endSize);
+        delete [] endPacket;
+    }
+}
+
 void Level::update() {
     auto& srv = Server::get();
-
+    
+    if (m_ticksEnd > 0) {
+        m_ticksEnd -= 1.f;
+    } else {
+        if (m_roundEnd) {
+            restartGame();
+            m_roundEnd = false;
+        }
+    }
+    
     // Collectibles
     for (auto& coll : m_collectibles) {
         for (auto& [id, plr] : srv.getClients()) {
@@ -187,26 +222,61 @@ void Level::update() {
                 {bullet.pos.x, bullet.pos.y}, 
                 {client.second.m_player.x, client.second.m_player.y, 1.f, 1.f}) 
             ) {
+                auto& owner = *srv.getClients().find(bullet.owner);
+
                 client.second.m_player.hp -= wpn.damage;
-                
+                auto dmgSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                auto dmgPacket = new char[dmgSize];
+
+                dmgPacket[0] = Header::DAMAGE;
+
+                *(uint32_t*)(dmgPacket + HEADER_SIZE) = client.first;
+                *(int*)(dmgPacket + HEADER_SIZE + 4) = wpn.damage;
+
+                owner.second.sendPacketTo(dmgPacket, dmgSize);
+
+                delete [] dmgPacket;
+
                 if (client.second.m_player.hp <= 0) {
                     plr.hp = 100;    
 
                     sendHpPacket(client.first, client.second.m_player, srv);
+
                     // score
-                    auto owner = srv.getClients().find(bullet.owner);
-                    owner->second.m_player.score++;
-                    srv.sendServerMessage(std::format("{} killed by {}", client.second.m_player.nickname, owner->second.m_player.nickname));
+                    if (!m_roundEnd) {
+                        owner.second.m_player.score++;
+                        srv.sendServerMessage(std::format("{} killed by {}", client.second.m_player.nickname, owner.second.m_player.nickname));
 
-                    auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
-                    auto scorePacket = new char[scoreSize];
+                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                        auto scorePacket = new char[scoreSize];
 
-                    scorePacket[0] = Header::SETSCORE;
+                        scorePacket[0] = Header::SETSCORE;
 
-                    *(uint32_t*)(scorePacket + HEADER_SIZE) = bullet.owner;
-                    *(int*)(scorePacket + HEADER_SIZE + 4) = owner->second.m_player.score;
+                        *(uint32_t*)(scorePacket + HEADER_SIZE) = bullet.owner;
+                        *(int*)(scorePacket + HEADER_SIZE + 4) = owner.second.m_player.score;
 
-                    srv.broadcast(scorePacket, scoreSize);
+                        srv.broadcast(scorePacket, scoreSize);
+                        
+                        delete [] scorePacket;
+                    }
+                    
+                    // round end
+                    if (owner.second.m_player.score >= m_scoreLimit) {
+                        auto endSize = HEADER_SIZE + sizeof(uint32_t);
+                        auto endPacket = new char[endSize];
+
+                        endPacket[0] = Header::ROUNDEND;
+
+                        *(uint32_t*)(endPacket + HEADER_SIZE) = bullet.owner;
+
+                        srv.broadcast(endPacket, endSize);
+                        srv.sendServerMessage(std::format("{} wins!", owner.second.m_player.nickname));
+
+                        m_roundEnd = true;
+                        m_ticksEnd = 500.f;
+                        
+                        delete [] endPacket;
+                    }
 
                     // respawn pos
                     auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
@@ -226,7 +296,6 @@ void Level::update() {
                     srv.broadcast(movePlrPacket, moveSize);
 
                     delete [] movePlrPacket;
-                    delete [] scorePacket;
                 } else {
                     sendHpPacket(client.first, client.second.m_player, srv);
                 }

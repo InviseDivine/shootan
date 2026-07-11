@@ -45,7 +45,9 @@ enum Header : uint8_t {
     UPDATECOLLECTIBLE,
     SETSCORE,
     UPDATEANGLE,
-    MESSAGE
+    MESSAGE, 
+    DAMAGE,
+    ROUNDEND
 };
 
 struct Weapon {
@@ -63,6 +65,7 @@ enum Block : uint8_t {
     DIRT,
     BRICK,
     LADDER,
+    STONE_BRICK,
 
     BLOCKS_COUNT
 };
@@ -88,6 +91,7 @@ struct Message {
     std::string text;
     float lifeTime;
     unsigned char alpha;
+    RVector2 pos;
 };
 
 struct Collectible {
@@ -111,6 +115,8 @@ enum Sprite {
     MEDKIT_SPRITE,
     LUFFY_HAT_SPRITE,
     COOL_SUNGLASSES_HAT_SPRITE,
+    CROWN_SPRITE,
+    
     SPRITES_COUNT
 };
 

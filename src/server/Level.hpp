@@ -56,4 +56,7 @@ private:
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectibles;
     std::vector<RVector2> m_respawnPoints;
+
+    bool m_roundEnd;
+    float m_ticksEnd;
 };
