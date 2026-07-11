@@ -10,6 +10,7 @@
 #include <Weapons.hpp>
 #include <raygui.h>
 #include "ResourceManager.hpp"
+#include <cstring>
 
 void Game::setEnd(bool end, uint32_t id) {
     m_end = end;

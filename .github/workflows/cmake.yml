@@ -42,6 +42,9 @@ jobs:
         with:
           name: shootan-${{ matrix.os }}
           path: |
-            build/**/*.exe
-            build/**/*game*
+            build/**/shooter-server
+            build/**/shooter
+            build/**/shooter.exe
+            build/**/shooter-server.exe
+            assets/
             !build/**/*.o
