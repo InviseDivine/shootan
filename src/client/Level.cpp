@@ -6,6 +6,8 @@
 #include <Utils.hpp>
 #include <fstream>
 #include <ResourceManager.hpp>
+#include <Weapons.hpp>
+#include <Collisions.hpp>
 
 #define ONSCREEN(maxX, maxY, minX, minY, x, y) y >= minY && y <= maxY && x >= minX && x <= maxX
 
@@ -123,6 +125,10 @@ void Level::render() {
         rm.drawCollectible(coll.type, {coll.pos.x, coll.newY}, WHITE);  
     }
 
+    for (auto& grenade : m_grenades) {
+        rm.drawSpriteFromSheet(GRENADE_SPRITE, {grenade.pos.x, grenade.pos.y, 0.5f, 0.5f});
+    }
+    
     if (game.getEditor()) {
         for (auto& [x, y] : m_respawnPoints) {
             if (ONSCREEN(max.x, max.y, min.x, min.y, x, y)) {
@@ -137,4 +143,70 @@ void Level::update() {
         bullet.pos.x += bullet.velocity.x;
         bullet.pos.y += bullet.velocity.y;
     }
+
+    for (auto& grenade : m_grenades) {
+        grenade.velocity.y += 0.02f;
+        auto& stats = grenades.at(grenade.grenadeId);
+
+        float prevX = grenade.velocity.x;
+        float prevY = grenade.velocity.y;
+
+        int blocksAroundCount = 10;
+        
+        std::vector<Vector2> blocksAroundArr = getBlocksAround({grenade.pos.x, grenade.pos.y}, stats.burstRadius);
+        
+        RRectangle grenadeBox = {grenade.pos.x, grenade.pos.y, 0.5f, 0.5f};
+
+        float x = grenade.velocity.x;
+        // Check for X collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, x);
+        }
+        auto tempX = grenade.pos.x + x;
+
+        if (tempX >= 0 && tempX < WORLD_SIZE - 1) {
+            grenadeBox.x = grenade.pos.x = tempX;
+        }
+        
+        float y = grenade.velocity.y;
+        // Check for Y collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, y);
+        }
+        grenade.pos.y += y;
+
+        // printf("%f %f \n", x, y);
+
+        // Stop motion on collision
+        if (prevX != x) grenade.velocity.x *= -1;
+        // if (prevY != y) grenade.velocity.y *= -1;
+
+        if (grenade.velocity.x > -0.05f && grenade.velocity.x < 0.05f) grenade.velocity.x = 0;
+        grenade.velocity.x *= 0.95f;
+        grenade.velocity.y *= 0.99f;   
+    }
+}
+
+std::vector<Vector2> Level::getBlocksAround(Vector2 pos, int radius) {
+    std::vector<Vector2> blocksAround;
+
+    int blocksAroundCount = 0;
+    for (int yy = (int)pos.y - radius; yy <= (int)(pos.y + radius); yy++) {
+        for (int xx = (int)pos.x - radius; xx <= (int)(pos.x + radius); xx++) {
+            if (GetBlock(xx, yy)) {
+                if (GetBlock(xx, yy) == LADDER) {
+                    continue;
+                }
+                
+                if (blocksAroundCount >= 15) {
+                    break;
+                } 
+
+                blocksAround.push_back(Vector2{(float)xx, (float)yy});
+                blocksAroundCount++;
+            }
+        }
+    }
+
+    return blocksAround;
 }

@@ -17,6 +17,7 @@ std::array<RVector2, WEAPONS_COUNT> weaponsSize {{
     {1.44f, 0.48f},  // SHOTGUN
     {1.92f, 0.48f}, // SNIPER_RIFLE
 }};
+
 void sendBullet(Bullet& bullet, float angle) {
     auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8 + 4];
     addBulletPacket[0] = Header::ADDBULLET;
@@ -281,7 +282,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
                             Bullet bullet = Bullet {
                                 {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
-                                {cosf(angl) * wpn.bulletSpeed, sinf(angl) * wpn.bulletSpeed}, 
+                                {cosA * wpn.bulletSpeed, sinA * wpn.bulletSpeed}, 
                                 static_cast<uint32_t>(level.bulletSize()),
                                 0,
                                 wpn.lifeTime, 
@@ -368,6 +369,56 @@ void Client::packetReceived(ENetPacket* packet) {
                 memcpy(msg, bytes, messageLength);
 
                 srv.sendServerMessage(std::format("<{}> {}", m_player.nickname, msg));
+
+                break;
+            }
+
+            case THROWGRENADE: {
+                m_player.grenade = COMMON;
+
+                // if (m_player.grenade != GRENADE_NONE) {
+                    auto angle = *(float*)bytes;
+                    auto& level = srv.getLevel();
+
+                    auto& stats = grenades.at(m_player.grenade - 1);
+                    
+                    Grenade grenade = { 0 };
+                    std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
+
+                    angle += distr(srv.getLevel().getGen());
+
+                    printf("swwqd %zu \n", level.grenadesSize());
+                    
+                    grenade.pos = {m_player.x + 0.5f, m_player.y + 0.5f};
+                    grenade.velocity = {stats.speed * cosf(angle), stats.speed * sinf(angle)};
+                    grenade.id = level.grenadesSize();
+                    grenade.grenadeId = m_player.grenade;
+                    grenade.lifeTime = stats.lifeTime;
+                    grenade.owner = m_peer->connectID;
+                    
+                    level.addGrenade(grenade);
+
+                    m_player.grenade = GRENADE_NONE;
+
+                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8];
+                    addBulletPacket[0] = Header::THROWGRENADE;
+                    
+                    uint32_t size = grenade.id;
+
+                    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 4) = grenade.pos.x;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 8) = grenade.pos.y;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 12) = grenade.velocity.x;
+                    *(float*)(addBulletPacket + HEADER_SIZE + 16) = grenade.velocity.y;
+
+                    auto& srv = Server::get();
+
+                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
+
+                    delete [] addBulletPacket;
+                // }
+                
+                break;
             }
             default:
                 break;

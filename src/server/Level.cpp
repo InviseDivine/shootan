@@ -7,6 +7,7 @@
 #include "Server.hpp"
 #include <algorithm>
 #include <fstream>
+#include <Collisions.hpp>
 
 // https://github.com/raysan5/raylib/blob/65abee1cbade6bf7edf55da6eb1eed6980aa754b/src/rshapes.c#L2267
 bool CheckCollisionPointRec(RVector2 point, RRectangle rec) {
@@ -328,6 +329,167 @@ void Level::update() {
             plr.m_player.reload -= 1.f;
         }
     }
+
+    // TODO: Rewrite
+    for (auto& grenade : m_grenades) {
+        grenade.velocity.y += 0.02f;
+        auto& stats = grenades.at(grenade.grenadeId - 1);
+
+        float prevX = grenade.velocity.x;
+        float prevY = grenade.velocity.y;
+
+        int blocksAroundCount = 10;
+        
+        std::vector<RVector2> blocksAroundArr = getBlocksAround({grenade.pos.x, grenade.pos.y}, stats.burstRadius);
+        
+        RRectangle grenadeBox = {grenade.pos.x, grenade.pos.y, 0.5f, 0.5f};
+
+        float x = grenade.velocity.x;
+        // Check for X collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, x);
+        }
+        auto tempX = grenade.pos.x + x;
+
+        if (tempX >= 0 && tempX < WORLD_SIZE - 1) {
+            grenadeBox.x = grenade.pos.x = tempX;
+        }
+        
+        float y = grenade.velocity.y;
+        // Check for Y collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, y);
+        }
+        grenade.pos.y += y;
+
+        // printf("%f %f \n", x, y);
+
+        // Stop motion on collision
+        if (prevX != x) grenade.velocity.x *= -1;
+        // if (prevY != y) grenade.velocity.y *= -1;
+
+        if (grenade.velocity.x > -0.05f && grenade.velocity.x < 0.05f) grenade.velocity.x = 0;
+        grenade.velocity.x *= 0.95f;
+        grenade.velocity.y *= 0.99f;   
+
+        grenade.lifeTime -= 1.f;
+
+        if (grenade.lifeTime <= 0) {
+            auto& stats = grenades.at(grenade.grenadeId - 1);
+
+            int minY = grenade.pos.y - stats.burstRadius;
+            int minX = grenade.pos.x - stats.burstRadius;
+
+            int maxY = grenade.pos.y + stats.burstRadius;
+            int maxX = grenade.pos.x + stats.burstRadius;
+
+            for (int y = minY; y < maxY; y++) {
+                for (int x = minX; x < maxX; x++) {
+                    for (auto& [id, client] : srv.getClients()) {
+                        if ((int)client.m_player.x == x && (int)client.m_player.y == y) {
+                            // TODO: Remove repeat code
+                            client.m_player.hp -= stats.damage;
+                            auto& owner = *srv.getClients().find(grenade.owner);
+
+                            auto dmgSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                            auto dmgPacket = new char[dmgSize];
+
+                            dmgPacket[0] = Header::DAMAGE;
+
+                            *(uint32_t*)(dmgPacket + HEADER_SIZE) = id;
+                            *(int*)(dmgPacket + HEADER_SIZE + 4) = stats.damage;
+
+                            owner.second.sendPacketTo(dmgPacket, dmgSize);
+
+                            delete [] dmgPacket;
+
+                            if (client.m_player.hp <= 0) {
+                                client.m_player.hp = 100;    
+
+                                sendHpPacket(id, client.m_player, srv);
+
+                                // score
+                                if (grenade.owner != id) {
+                                    if (!m_roundEnd) {
+                                        owner.second.m_player.score++;
+                                        srv.sendServerMessage(std::format("{} killed by {}", client.m_player.nickname, owner.second.m_player.nickname));
+
+                                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                                        auto scorePacket = new char[scoreSize];
+
+                                        scorePacket[0] = Header::SETSCORE;
+
+                                        *(uint32_t*)(scorePacket + HEADER_SIZE) = grenade.owner;
+                                        *(int*)(scorePacket + HEADER_SIZE + 4) = owner.second.m_player.score;
+
+                                        srv.broadcast(scorePacket, scoreSize);
+                                        
+                                        delete [] scorePacket;
+                                    }
+                                    
+                                    // round end
+                                    if (owner.second.m_player.score >= m_scoreLimit) {
+                                        auto endSize = HEADER_SIZE + sizeof(uint32_t);
+                                        auto endPacket = new char[endSize];
+
+                                        endPacket[0] = Header::ROUNDEND;
+
+                                        *(uint32_t*)(endPacket + HEADER_SIZE) = grenade.owner;
+
+                                        srv.broadcast(endPacket, endSize);
+                                        srv.sendServerMessage(std::format("{} wins!", owner.second.m_player.nickname));
+
+                                        m_roundEnd = true;
+                                        m_ticksEnd = 500.f;
+                                        
+                                        delete [] endPacket;
+                                    }
+                                }
+
+                                // respawn pos
+                                auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(id);
+                                auto movePlrPacket = new char[moveSize];
+                                
+                                movePlrPacket[0] = MOVE;
+                                
+                                auto& pos = getRandomSpawn();
+                                
+                                client.m_player.x = pos.x;
+                                client.m_player.y = pos.y;
+                                
+                                *(uint32_t*)(movePlrPacket + 1) = id;
+                                *(float*)(movePlrPacket + 5) = pos.x;
+                                *(float*)(movePlrPacket + 9) = pos.y;
+
+                                srv.broadcast(movePlrPacket, moveSize);
+
+                                delete [] movePlrPacket;
+                            } else {
+                                sendHpPacket(id, client.m_player, srv);
+                            }                        
+                        }
+                    }
+                }
+            }
+
+            auto removeGrenade = HEADER_SIZE + sizeof(grenade.id);
+            auto removePacket = new char[removeGrenade];
+            
+            removePacket[0] = REMOVEGRENADE;
+            
+            *(uint32_t*)(removePacket + 1) = grenade.id;
+
+            srv.broadcast(removePacket, removeGrenade);
+
+            delete [] removePacket;
+
+            auto test = std::erase_if(m_grenades, [&grenade](Grenade grnd) { 
+                return grenade.id == grnd.id;
+            }); 
+
+            printf("%d\n", test);
+        }
+    }
 }
 
 void Level::read(const std::string& filepath) {
@@ -358,4 +520,28 @@ void Level::read(const std::string& filepath) {
 
         world.close();
     }   
+}
+
+std::vector<RVector2> Level::getBlocksAround(RVector2 pos, int radius) {
+    std::vector<RVector2> blocksAround;
+
+    int blocksAroundCount = 0;
+    for (int yy = (int)pos.y - radius; yy <= (int)(pos.y + radius); yy++) {
+        for (int xx = (int)pos.x - radius; xx <= (int)(pos.x + radius); xx++) {
+            if (GetBlock(xx, yy)) {
+                if (GetBlock(xx, yy) == LADDER) {
+                    continue;
+                }
+                
+                if (blocksAroundCount >= 10) {
+                    break;
+                } 
+
+                blocksAround.push_back(RVector2{(float)xx, (float)yy});
+                blocksAroundCount++;
+            }
+        }
+    }
+
+    return blocksAround;
 }

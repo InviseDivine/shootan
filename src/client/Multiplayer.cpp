@@ -318,8 +318,6 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case LEVEL:  {
-            // Setting end here because when round ends server changes map
-
             auto size = *(uint32_t*)bytes;
             bytes += 4;
 
@@ -456,6 +454,45 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             } else {
                 game.setEnd(true, id);
             }
+
+            break;
+        }
+
+        case THROWGRENADE: {
+            auto index = *(uint32_t*)bytes;
+            bytes += 4;
+
+            auto x = *(float*)bytes;
+            bytes += 4;
+            auto y = *(float*)bytes;
+            bytes += 4;
+
+            auto velX = *(float*)bytes;
+            bytes += 4;
+            auto velY = *(float*)bytes;
+            bytes += 4;
+
+            Vector2 bulletSize = {0.3f, 0.2f};
+            Grenade grenade = {{velX, velY}, {x, y}};
+            grenade.id = index;
+            game.getLevel().addGrenade(grenade);
+        
+            break;
+        }
+
+        case ADDGRENADE: {
+            auto id = *(Grenades*)bytes;
+            game.getPlayer().grenade = id;
+
+            break;
+        }
+
+        case REMOVEGRENADE: {
+            auto id = *(uint32_t*)bytes;
+
+            game.getLevel().removeGrenade(id);
+            
+            break;
         }
         default: break;
     }

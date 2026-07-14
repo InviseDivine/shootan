@@ -124,6 +124,14 @@ public:
     
     void read();
     void write();
+
+    void addGrenade(Grenade grenade) { m_grenades.push_back(grenade); }
+    void removeGrenade(uint32_t id) { 
+        std::erase_if(m_grenades, [&id](Grenade grenade) { 
+            return grenade.id == id;
+        });
+    }
+    std::vector<Vector2> getBlocksAround(Vector2 pos, int radius);
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_background;
@@ -131,4 +139,5 @@ private:
     std::vector<RVector2> m_respawnPoints;
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectiblies;
+    std::vector<Grenade> m_grenades;
 };

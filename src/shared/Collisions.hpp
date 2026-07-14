@@ -30,3 +30,28 @@ inline float ClipY(RRectangle rec1, RRectangle rec2, float ya) {
 
     return ya;
 }
+
+// inline Vector2 MoveInWorld(float speedX, float speedX, Level& level, std::vector<RRectangle> hitboxes) {
+//     auto prevX = speedX;
+//     auto prevY = speedY;
+//     auto hitboxes = level.get(Expand(x, y));
+
+//     // Check for X collision
+//     for (auto& hitbox : hitboxes) {
+//         x = hitbox.ClipCollideX(*this, x);
+//     }
+//     this->x += x;
+
+//     // Check for Y collision
+//     for (auto& hitbox : hitboxes) {
+//         y = hitbox.ClipCollideY(*this, y);
+//     }
+//     this->y += y;
+
+//     // Update on ground state
+//     m_onGround = prevY != y && prevY > 0.f;
+
+//     // Stop motion on collision
+//     if (prevX != x) m_speed.x = 0.f;
+//     if (prevY != y) m_speed.y = 0.f;
+// }

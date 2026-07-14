@@ -121,34 +121,16 @@ void Game::updatePlayer() {
     float prevX = m_player.speed.x;
     float prevY = m_player.speed.y;
 
-    Vector2 blocksAroundArr[10] = { 0 };
+    int blocksAroundCount = 10;
     
-    int blocksAroundCount = 0;
-    for (int yy = (int)m_player.y - 1; yy <= (int)(m_player.y + 5.f); yy++) {
-        for (int xx = (int)m_player.x - 1; xx <= (int)(m_player.x + 5.f); xx++) {
-            if (m_level.GetBlock(xx, yy)) {
-                if (m_level.GetBlock(xx, yy) == LADDER) {
-                    continue;
-                }
-                
-                if (blocksAroundCount >= 10) {
-                    break;
-                } 
-
-                blocksAroundArr[blocksAroundCount] = Vector2{(float)xx, (float)yy};
-                blocksAroundCount++;
-            }
-
-            if (blocksAroundCount >= 20) break;
-        }
-    }
+    std::vector<Vector2> blocksAroundArr = m_level.getBlocksAround({m_player.x, m_player.y}, 3);
     
     RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
 
     float x = m_player.speed.x;
     // Check for X collision
-    for (int i = 0; i < blocksAroundCount; i++) {
-        x = ClipX(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, x);
+    for (int i = 0; i < blocksAroundArr.size(); i++) {
+        x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, x);
     }
     auto tempX = m_player.x + x;
 
@@ -159,8 +141,8 @@ void Game::updatePlayer() {
     // printf("%f \n", x);
     float y = m_player.speed.y;
     // Check for Y collision
-    for (int i = 0; i < blocksAroundCount; i++) {
-        y = ClipY(RRectangle{blocksAroundArr[i].x, blocksAroundArr[i].y, 1.0f, 1.0f}, playerBox, y);
+    for (int i = 0; i < blocksAroundArr.size(); i++) {
+        y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, y);
     }
     m_player.y += y;
     // printf("%f \n", y);
@@ -178,7 +160,7 @@ void Game::updatePlayer() {
 }
 
 void Game::addNotification(uint32_t id, int damage) {
-    auto plr = m_players.at(id);
+    auto plr = id == m_myId ? m_player : m_players.at(id);
     Vector2 pos = GetWorldToScreen2D(Vector2 { plr.x + 1.f, plr.y + 0.5f }, m_camera);
 
     m_killsNotifications.push_back(Message {std::format("-{}", damage), 0, 255, {pos.x, pos.y}});
@@ -341,9 +323,12 @@ void Game::update() {
             }
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {        
-            Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
 
+        // TODO: Rewrite gun angle
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {  
+            auto& rm = ResourceManager::get();
+      
+            Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
             Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
             Vector2 direction = Vector2Subtract(mousePos, gunPos);
@@ -359,7 +344,7 @@ void Game::update() {
 
             mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
 
-            m_player.reload = weapons.at(m_player.inventory.at(m_player.currentWeapon)).reloadTime;
+            m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
 
             delete [] addBulletPacket;
         }
@@ -393,6 +378,25 @@ void Game::update() {
 
         if (IsKeyDown(KEY_D)) {
             m_player.speed.x = 0.175f;
+        }
+
+        if (IsKeyPressed(KEY_F)) {
+            Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
+            Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+
+            Vector2 direction = Vector2Subtract(mousePos, gunPos);
+            auto& mp = Multiplayer::get();
+
+            float angle = atan2f(direction.y, direction.x);
+
+            auto grenadeSize = HEADER_SIZE + sizeof(angle);
+            auto grenadePacket = new char[grenadeSize];
+
+            grenadePacket[0] = Header::THROWGRENADE;
+            *(float*)(grenadePacket + 1) = angle;
+            
+            mp.sendPacket(grenadePacket, grenadeSize, true);
+            delete [] grenadePacket;
         }
     } else {
         if (IsKeyPressed(KEY_ENTER)) {

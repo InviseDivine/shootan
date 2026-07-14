@@ -47,7 +47,10 @@ enum Header : uint8_t {
     UPDATEANGLE,
     MESSAGE, 
     DAMAGE,
-    ROUNDEND
+    ROUNDEND,
+    THROWGRENADE,
+    ADDGRENADE,
+    REMOVEGRENADE
 };
 
 struct Weapon {
@@ -69,8 +72,35 @@ enum Block : uint8_t {
     GLASS,
     LEAVES,
     WOOD,
-    
+    BOX,
+
     BLOCKS_COUNT
+};
+
+enum Grenades : uint8_t {
+    GRENADE_NONE = 0,
+    COMMON,
+
+    GRENADES_COUNT
+};
+
+
+struct Grenade {    
+    RVector2 velocity;
+    RVector2 pos;
+    
+    Grenades grenadeId;
+    uint32_t id;
+    uint32_t owner;
+    
+    float lifeTime;
+};
+
+struct GrenadeStats {
+    int burstRadius;
+    int damage;
+    float speed;
+    float lifeTime;
 };
 
 enum Weapons : uint8_t {
@@ -128,7 +158,8 @@ enum Sprite {
     LUFFY_HAT_SPRITE,
     COOL_SUNGLASSES_HAT_SPRITE,
     CROWN_SPRITE,
-    
+    GRENADE_SPRITE,
+
     SPRITES_COUNT
 };
 
@@ -136,6 +167,7 @@ enum DisconnectReason {
     WRONG_HEADER = 0,
     NICKNAME_TOO_LONG,
 };
+
 struct Player {
     std::string nickname;
     
@@ -157,6 +189,8 @@ struct Player {
     float angle;
     
     Hat hat;
+
+    Grenades grenade;
 };
 
 struct Bullet {

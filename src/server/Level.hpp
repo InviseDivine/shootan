@@ -45,6 +45,11 @@ public:
     std::mt19937& getGen() { return m_gen; }
 
     void restartGame();
+
+    std::vector<RVector2> getBlocksAround(RVector2 pos, int radius);
+
+    uint32_t grenadesSize() { return m_grenades.size(); }
+    void addGrenade(Grenade grenade) { m_grenades.push_back(grenade); }
 private:
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_world;
     std::array<uint8_t, WORLD_SIZE * WORLD_SIZE> m_background;
@@ -56,6 +61,8 @@ private:
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectibles;
     std::vector<RVector2> m_respawnPoints;
+    
+    std::vector<Grenade> m_grenades;
 
     bool m_roundEnd;
     float m_ticksEnd;
