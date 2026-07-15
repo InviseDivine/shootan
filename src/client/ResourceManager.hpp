@@ -29,7 +29,7 @@ public:
 
     bool isSpriteOnScreen(Collectible coll); 
 
-    const Vector2& getSpriteSize(Sprite index);
+    const Vector2 getSpriteSize(Sprite index);
 
     const Sprite getWeaponSprite(Weapons weapon);
 
@@ -52,6 +52,6 @@ private:
         {44, 0, 8, 6},   // LUFFY_HAT_SPRITE
         {52, 0, 7, 6},   // COOL_SUNGLASSES_HAT_SPRITE
         {8, 20, 7, 7},   // CROWN_SPRITE
-        {11, 32, 5, 5},   // GRENADE_SPRITE
+        {11, 32, 5, 5},  // GRENADE_SPRITE
     }};
 };

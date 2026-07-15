@@ -17,7 +17,7 @@ const Sprite ResourceManager::getHatSprite(Hat hat) {
         case WIZARD_HAT: return WIZARD_HAT_SPRITE;
         case LUFFY_HAT: return LUFFY_HAT_SPRITE;
         case COOL_SUNGLASSES_HAT: return COOL_SUNGLASSES_HAT_SPRITE;
-        default: return SPRITES_COUNT;
+        default: return WIZARD_HAT_SPRITE;
     }
 }
 
@@ -26,7 +26,7 @@ void ResourceManager::init() {
     m_blocks = LoadTexture("assets/blocks.png");
 }
 
-const Vector2& ResourceManager::getSpriteSize(Sprite index) {
+const Vector2 ResourceManager::getSpriteSize(Sprite index) {
     return {getSrc(index).width, getSrc(index).height};
 }
 

@@ -201,8 +201,6 @@ void Game::init(std::string nickname) {
     if(getenv("SteamDeck")) ToggleFullscreen();
 #endif
 
-    // m_editor = 1;
-
     SetExitKey(KEY_NULL);
 
     Image icon = LoadImage("assets/ico.png");    
@@ -636,11 +634,13 @@ void Game::render() {
 
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flipClient);
 
-            auto& hatPos = rm.getHatPos(client.hat);
-            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
+            if (m_player.hat != NONE_HAT) {
+                auto& hatPos = rm.getHatPos(client.hat);
+                auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
 
-            rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-            {0, 0}, 0, WHITE, flipClient);
+                rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+                {0, 0}, 0, WHITE, flipClient);
+            }
 
             rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
 
@@ -648,12 +648,13 @@ void Game::render() {
         }
         rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
 
-        // DrawRectangleRec({m_player.x, m_player.y, 1.f, 1.f}, MAROON);   
-        auto& hatPos = rm.getHatPos(m_player.hat);
-        auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
+        if (m_player.hat != NONE_HAT) {
+            auto& hatPos = rm.getHatPos(m_player.hat);
+            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
 
-        rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-        {0, 0}, 0, WHITE, flip);
+            rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+            {0, 0}, 0, WHITE, flip);
+        }
 
         rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
 
@@ -790,6 +791,10 @@ void Game::render() {
         }
     }
 
+    if (IsGamepadAvailable(0) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_LEFT)) {
+        drawScore();
+    }
+    
     if (IsKeyDown(KEY_TAB) || m_end) {
         drawScore();
     }    
@@ -958,11 +963,14 @@ void Game::renderEditor() {
     
         if (m_testmode) {
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
-            auto& hatPos = rm.getHatPos(m_player.hat);
-            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
 
-            rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-            {0, 0}, 0, WHITE, flip);
+            if (m_player.hat != NONE_HAT) {
+                auto& hatPos = rm.getHatPos(m_player.hat);
+                auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
+
+                rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+                {0, 0}, 0, WHITE, flip);
+            }
         } else {
             // DrawRectangleLinesEx({(float)worldMousei.x, (float)worldMousei.y, 1.f, 1.f}, 0.1f, MAROON);
         }
