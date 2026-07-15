@@ -109,6 +109,9 @@ void Game::startMpThread(std::string srv) {
     m_player.nickname.resize(strlen(m_player.nickname.c_str()));
 
     auto& mp = Multiplayer::get();
+
+    m_lastServer = srv;
+
     std::thread(&Multiplayer::init, &mp, m_player.nickname, ip, port).detach();
 }
 
@@ -576,21 +579,34 @@ void Game::render() {
 
     float weaponY = GetScreenHeight();
 
+    if (m_player.grenade != GRENADE_NONE) {
+        auto& size = rm.getSpriteSize(GRENADE_SPRITE);
+        Vector2 destSize = {size.x * 4, size.y * 4};
+
+        Rectangle dest = { 0 };
+        dest.width = destSize.x;
+        dest.height = destSize.y;
+        dest.x = GetScreenWidth() - 120;
+        dest.y = GetScreenHeight() - destSize.y;
+
+        rm.drawSpriteFromSheet(GRENADE_SPRITE, dest, {0, 0}, 0, WHITE);
+    }
+
     for (int i = 0; i < WEAPONS_COUNT; i++) {
         if (m_player.inventory.at(i)) {
             auto sprite = rm.getWeaponSprite((Weapons) i);
             auto& size = rm.getSpriteSize(sprite);
             Vector2 destSize = {size.x * 4, size.y * 4};
 
-            Rectangle src = { 0 };
-            src.width = destSize.x;
-            src.height = destSize.y;
-            src.x = GetScreenWidth() - destSize.x;
-            src.y = weaponY - destSize.y;
+            Rectangle dest = { 0 };
+            dest.width = destSize.x;
+            dest.height = destSize.y;
+            dest.x = GetScreenWidth() - destSize.x;
+            dest.y = weaponY - destSize.y;
 
             Color color = i == m_player.currentWeapon ? WHITE : Color {255, 255, 255, 130};
 
-            rm.drawSpriteFromSheet(sprite, src, {0, 0}, 0, color);
+            rm.drawSpriteFromSheet(sprite, dest, {0, 0}, 0, color);
 
             weaponY -= destSize.y + 10.f;
         }

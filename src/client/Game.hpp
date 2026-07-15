@@ -68,7 +68,12 @@ public:
 
     void enterEditor() { m_editor = true; }
     void exitEditor() { m_editor = false; }
+
+    std::string getLastServer() { return m_lastServer; }
+    void setLastServer(std::string lastServer) { m_lastServer = lastServer; } 
 private:
+    std::string m_lastServer;
+
     bool m_cleanScene;
     std::shared_ptr<Scene> m_scene;
 
