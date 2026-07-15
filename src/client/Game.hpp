@@ -72,6 +72,11 @@ public:
     std::string getLastServer() { return m_lastServer; }
     void setLastServer(std::string lastServer) { m_lastServer = lastServer; } 
 private:
+    Vector2 m_gamepadCursor;
+    int m_currentInput;
+
+    bool m_paused;
+    
     std::string m_lastServer;
 
     bool m_cleanScene;

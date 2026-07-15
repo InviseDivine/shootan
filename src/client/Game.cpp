@@ -197,6 +197,9 @@ void Game::init(std::string nickname) {
     InitWindow(1280, 720, "Shootan");
 
     SetTargetFPS(60);
+#ifdef __linux__
+    if(getenv("SteamDeck")) ToggleFullscreen()
+#endif
 
     // m_editor = 1;
 
@@ -207,6 +210,7 @@ void Game::init(std::string nickname) {
     UnloadImage(icon);    
 
     GuiSetStyle(DEFAULT, TEXT_SIZE, 20);
+    HideCursor();
 
     auto& rm = ResourceManager::get();
     rm.init();
@@ -255,6 +259,16 @@ void Game::init(std::string nickname) {
 }
 void Game::update() {
     m_timer.advanceTime();
+
+
+    if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        m_currentInput = 0;
+    }
+
+    if (GetGamepadButtonPressed() > 0) {
+        m_currentInput = 1;
+    }
+
     float zoomWidth = (float) GetScreenWidth() / 25.6;
     float zoomHeight = (float) GetScreenHeight() / 14.4;
 
@@ -262,10 +276,10 @@ void Game::update() {
 
     auto width = GetScreenWidth();
     auto height = GetScreenHeight();
-
-    auto mousePos = GetMousePosition();
     
     m_camera.target = Vector2 {m_player.x, m_player.y};
+    Vector2 mouse = m_currentInput == 0 ? GetMousePosition() : m_gamepadCursor;
+    Vector2 worldMousePos =  GetScreenToWorld2D(mouse, m_camera);
 
     if (m_player.currentWeapon == SNIPER_RIFLE) {
         static Vector2 zoom = { 0 };
@@ -282,11 +296,11 @@ void Game::update() {
         boxRight.x = 0;
         boxRight.y = 0;
 
-        if (CheckCollisionPointRec(mousePos, boxRight) && m_camera.offset.x < width / 2.0f + 300) {
+        if (CheckCollisionPointRec(worldMousePos, boxRight) && m_camera.offset.x < width / 2.0f + 300) {
             zoom.x += 10.f;
         } 
 
-        if (CheckCollisionPointRec(mousePos, boxLeft) && m_camera.offset.x > width / 2.0f - 300) {
+        if (CheckCollisionPointRec(worldMousePos, boxLeft) && m_camera.offset.x > width / 2.0f - 300) {
             zoom.x -= 10.f;
         } 
 
@@ -312,6 +326,143 @@ void Game::update() {
     }
 
     if (!m_chatOpened) {
+        auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
+            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
+
+        if (IsGamepadAvailable(0) && m_currentInput == 1) { 
+            float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+            float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+
+            float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+            float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+
+            float rightTrigger = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
+
+            if (rightTrigger < -0.9f) rightTrigger = -1.0f;
+
+            if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
+            if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
+
+            if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+            if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+            
+            if (rightTrigger > 0) {
+                auto& rm = ResourceManager::get();
+        
+                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+
+                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
+
+                float angle = atan2f(direction.y, direction.x);
+
+                auto& mp = Multiplayer::get();
+
+                auto addBulletPacket = new char[HEADER_SIZE + 4];
+                addBulletPacket[0] = Header::ADDBULLET;
+
+                *(float*)(addBulletPacket + HEADER_SIZE) = angle;
+
+                mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
+
+                m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
+
+                delete [] addBulletPacket;
+            }
+
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_FACE_LEFT) && m_player.grenade != GRENADE_NONE) {
+                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+
+                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
+                auto& mp = Multiplayer::get();
+
+                float angle = atan2f(direction.y, direction.x);
+
+                auto grenadeSize = HEADER_SIZE + sizeof(angle);
+                auto grenadePacket = new char[grenadeSize];
+
+                grenadePacket[0] = Header::THROWGRENADE;
+                *(float*)(grenadePacket + 1) = angle;
+                
+                mp.sendPacket(grenadePacket, grenadeSize, true);
+                delete [] grenadePacket;
+
+                m_player.grenade = GRENADE_NONE;
+            }
+
+            if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP) || leftStickY < 0 || IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
+                if (onLadder) {
+                    // TODO: Rewrite
+                    int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+                    m_player.speed.y = -0.2f;
+                    m_player.x = playerX;
+                } else if (m_player.onGround) {
+                    m_player.speed.y = -0.3f;
+                }
+            }
+
+            if (onLadder && (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN) || leftStickY > 0)) {
+                int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+                m_player.speed.y = 0.2f;
+                m_player.x = playerX;
+            }
+
+            if (leftStickX > 0 || (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))) {
+                m_player.speed.x = 0.175f;
+            }
+
+            if (leftStickX < 0 || (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT))) {
+                m_player.speed.x = -0.175f;
+            }
+
+            int k = 25;
+            
+            if (rightStickX > 0) {
+                m_gamepadCursor.x += k;
+            }
+
+            if (rightStickX < 0) {
+                m_gamepadCursor.x -= k;
+            }
+
+            if (rightStickY < 0) {
+                m_gamepadCursor.y -= k;
+            }
+
+            if (rightStickY > 0) {
+                m_gamepadCursor.y += k;
+            }
+
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_TRIGGER_1)) {
+                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+                updateWeapon[0] = UPDATEWEAPON;
+                updateWeapon[1] = m_player.currentWeapon - 1;
+                
+                auto& mp = Multiplayer::get();
+                
+                mp.sendPacket(updateWeapon, 2, true);
+                
+                delete [] updateWeapon;
+            }
+
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_1)) {
+                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+                updateWeapon[0] = UPDATEWEAPON;
+                updateWeapon[1] = m_player.currentWeapon + 1;
+                
+                auto& mp = Multiplayer::get();
+                
+                mp.sendPacket(updateWeapon, 2, true);
+                
+                delete [] updateWeapon;
+            }
+
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) m_paused ^= 1;
+        }
+
         for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
             if (IsKeyPressed(KEY_ONE + i)) {
                 auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
@@ -331,10 +482,9 @@ void Game::update() {
         if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {  
             auto& rm = ResourceManager::get();
       
-            Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
             Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
-            Vector2 direction = Vector2Subtract(mousePos, gunPos);
+            Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
 
             float angle = atan2f(direction.y, direction.x);
 
@@ -351,9 +501,6 @@ void Game::update() {
 
             delete [] addBulletPacket;
         }
-        
-        auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
-            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
 
         if ((IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) ||  IsKeyDown(KEY_UP))) {
             if (onLadder) {
@@ -384,10 +531,9 @@ void Game::update() {
         }
 
         if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE) {
-            Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
             Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
-            Vector2 direction = Vector2Subtract(mousePos, gunPos);
+            Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
             auto& mp = Multiplayer::get();
 
             float angle = atan2f(direction.y, direction.x);
@@ -449,11 +595,12 @@ void Game::update() {
 void Game::render() {
     ClearBackground({4, 4, 50, 255});
     
-    Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
+    Vector2 mouse = m_currentInput == 0 ? GetMousePosition() : m_gamepadCursor;
+    Vector2 worldMousePos =  GetScreenToWorld2D(mouse, m_camera);
 
     Vector2 origin = GetScreenToWorld2D({45.f, 45.f}, m_camera);
 
-    Vector2 direction = Vector2Subtract(mousePos, {m_player.x + 0.5f, m_player.y + 0.5f});
+    Vector2 direction = Vector2Subtract(worldMousePos, {m_player.x + 0.5f, m_player.y + 0.5f});
 
     float anglePrev = 0;
     float angle = atan2f(direction.y, direction.x) * RAD2DEG;
@@ -646,6 +793,8 @@ void Game::render() {
     if (IsKeyDown(KEY_TAB) || m_end) {
         drawScore();
     }    
+
+    DrawCircleV(mouse, 3.f, WHITE);
 }
 
 void Game::updateEditor() {

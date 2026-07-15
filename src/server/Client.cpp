@@ -278,7 +278,6 @@ void Client::packetReceived(ENetPacket* packet) {
                             auto angl = angle + distr(srv.getLevel().getGen());
                             cosA = cosf(angl);
                             sinA = sinf(angl);
-                            std::cout << angl << std::endl;
 
                             Bullet bullet = Bullet {
                                 {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
