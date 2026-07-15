@@ -197,7 +197,7 @@ std::vector<Vector2> Level::getBlocksAround(Vector2 pos, int radius) {
                     continue;
                 }
                 
-                if (blocksAroundCount >= 15) {
+                if (blocksAroundCount >= 25) {
                     break;
                 } 
 

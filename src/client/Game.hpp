@@ -24,10 +24,10 @@ public:
     void setMyId(uint32_t id) { m_myId = id; }
     uint32_t getMyId() { return m_myId; }
     Player& getPlayer() { return m_player; }
-    void setMyWeapon(uint8_t weaponID) { 
+    void setMyWeapon(Weapons weaponID) { 
         m_player.currentWeapon = weaponID;
     }
-    void addWeapon(uint8_t weaponID) { m_player.inventory.at(weaponID) = true; }
+    void addWeapon(Weapons weaponID) { m_player.inventory.at(weaponID) = true; }
     
     std::unordered_map<uint32_t, Player>& getPlayers() { return m_players; }
     Level& getLevel() { return m_level; }

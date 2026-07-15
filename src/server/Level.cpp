@@ -89,7 +89,7 @@ void Level::restartGame() {
         plr.m_player.inventory = {true};
         plr.m_player.reload = 0;
         plr.m_player.hp = 100;
-        plr.m_player.currentWeapon = 0;
+        plr.m_player.currentWeapon = (Weapons) 0;
 
         auto endSize = HEADER_SIZE + sizeof(uint32_t);
         auto endPacket = new char[endSize];
@@ -190,8 +190,6 @@ void Level::update() {
                             case GRENADE_COLLECT : {
                                 auto& grenade = plr.m_player.grenade;
                                 
-                                std::cout << "Grenade: " << grenade << std::endl;
-
                                 if (grenade == GRENADE_NONE) {
                                     auto grenadePacket = new char[HEADER_SIZE + 1];
                                     grenadePacket[0] = ADDGRENADE;
@@ -503,11 +501,9 @@ void Level::update() {
 
             delete [] removePacket;
 
-            auto test = std::erase_if(m_grenades, [&grenade](Grenade grnd) { 
+            std::erase_if(m_grenades, [&grenade](Grenade grnd) { 
                 return grenade.id == grnd.id;
             }); 
-
-            printf("%d\n", test);
         }
     }
 }

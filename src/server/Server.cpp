@@ -71,75 +71,75 @@ int Server::update() {
             auto id = event.peer->connectID;
 
             switch (event.type) {
-            case ENET_EVENT_TYPE_CONNECT: {
-                if (!m_clients.contains(id)) {
-                    event.peer->data = (void*)((uintptr_t)id);
+                case ENET_EVENT_TYPE_CONNECT: {
+                    if (!m_clients.contains(id)) {
+                        event.peer->data = (void*)((uintptr_t)id);
 
-                    m_clients.emplace(id, Client(event.peer));
+                        m_clients.emplace(id, Client(event.peer));
+                    }
+
+                    break;
                 }
 
-                break;
-            }
+                case ENET_EVENT_TYPE_DISCONNECT: {
+                    auto disconnectID = (uint32_t)((uintptr_t)event.peer->data);
 
-            case ENET_EVENT_TYPE_DISCONNECT: {
-                auto disconnectID = (uint32_t)((uintptr_t)event.peer->data);
+                    printf("disconnecting id: %u \n", disconnectID);
+                    
+                    if (m_clients.contains(disconnectID)) {
+                        sendServerMessage(std::format("{} disconnected from the server", m_clients.at(disconnectID).m_player.nickname));
 
-                printf("disconnecting id: %u \n", disconnectID);
-                
-                if (m_clients.contains(disconnectID)) {
-                    sendServerMessage(std::format("{} disconnected from the server", m_clients.at(disconnectID).m_player.nickname));
+                        std::erase_if(m_clients, [&](auto& pair) {
+                            return pair.second.getID() == disconnectID;
+                        });
 
-                    std::erase_if(m_clients, [&](auto& pair) {
-                        return pair.second.getID() == disconnectID;
-                    });
+                        auto removePlayerPacket = new char[HEADER_SIZE + 4];
+                        removePlayerPacket[0] = Header::REMOVEPLAYER;
 
-                    auto removePlayerPacket = new char[HEADER_SIZE + 4];
-                    removePlayerPacket[0] = Header::REMOVEPLAYER;
+                        *(uint32_t*)(removePlayerPacket + HEADER_SIZE) = disconnectID;
 
-                    *(uint32_t*)(removePlayerPacket + HEADER_SIZE) = disconnectID;
+                        broadcast(removePlayerPacket, HEADER_SIZE + 4);
 
-                    broadcast(removePlayerPacket, HEADER_SIZE + 4);
+                        delete [] removePlayerPacket;
+                    }
 
-                    delete [] removePlayerPacket;
+                    break;
                 }
 
-                break;
-            }
+                case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                    auto disconnectID = (uint32_t)((uintptr_t)event.peer->data);
 
-            case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
-                auto disconnectID = (uint32_t)((uintptr_t)event.peer->data);
+                    printf("disconnecting timeout id: %u \n", disconnectID);
 
-                printf("disconnecting timeout id: %u \n", disconnectID);
+                    if (m_clients.contains(disconnectID)) {
+                        sendServerMessage(std::format("{} disconnected from the server due timeout", m_clients.at(disconnectID).m_player.nickname));
 
-                if (m_clients.contains(disconnectID)) {
-                    sendServerMessage(std::format("{} disconnected from the server due timeout", m_clients.at(disconnectID).m_player.nickname));
+                        std::erase_if(m_clients, [&](auto& pair) {
+                            return pair.second.getID() == disconnectID;
+                        });
 
-                    std::erase_if(m_clients, [&](auto& pair) {
-                        return pair.second.getID() == disconnectID;
-                    });
+                        auto removePlayerPacket = new char[HEADER_SIZE + 4];
+                        removePlayerPacket[0] = Header::REMOVEPLAYER;
 
-                    auto removePlayerPacket = new char[HEADER_SIZE + 4];
-                    removePlayerPacket[0] = Header::REMOVEPLAYER;
+                        *(uint32_t*)(removePlayerPacket + HEADER_SIZE) = disconnectID;
 
-                    *(uint32_t*)(removePlayerPacket + HEADER_SIZE) = disconnectID;
+                        broadcast(removePlayerPacket, HEADER_SIZE + 4);
 
-                    broadcast(removePlayerPacket, HEADER_SIZE + 4);
+                        delete [] removePlayerPacket;
+                    }
 
-                    delete [] removePlayerPacket;
+                    break;
                 }
 
-                break;
-            }
-
-            case ENET_EVENT_TYPE_RECEIVE: {
-                if (m_clients.contains(id)) {
-                    m_clients[id].packetReceived(event.packet);
+                case ENET_EVENT_TYPE_RECEIVE: {
+                    if (m_clients.contains(id)) {
+                        m_clients[id].packetReceived(event.packet);
+                    }
+                    
+                    enet_packet_destroy(event.packet);
                 }
-                
-                enet_packet_destroy(event.packet);
-            }
 
-            default: break;
+                default: break;
             }
         }
 

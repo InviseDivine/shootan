@@ -18,14 +18,14 @@ void Game::setEnd(bool end, uint32_t id) {
     m_end = end;
     if (id == 0) {
         for (auto& [id, plr] : m_players) {
-            plr.currentWeapon = 0;
+            plr.currentWeapon = (Weapons) 0;
             plr.hp = 100;
             plr.score = 0;
         }
 
         m_player.hp = 100;
         m_player.score = 0;
-        m_player.currentWeapon = 0;
+        m_player.currentWeapon = (Weapons) 0;
         m_player.inventory = {true};
         
         m_winner = 0;
@@ -82,7 +82,7 @@ void Game::setMyHp(int hp) {
 void Game::cleanup() {
     m_level = Level();
     auto hat = m_player.hat;
-    m_player = {m_player.nickname, 0, 0, 100, 0, {true}};
+    m_player = {m_player.nickname, 0, 0, 100, (Weapons) 0, {true}};
     m_player.hat = hat;
     m_messages.clear();
     m_players.clear();
@@ -208,7 +208,7 @@ void Game::init(std::string nickname) {
     auto& rm = ResourceManager::get();
     rm.init();
 
-    m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true}; 
+    m_player = {nickname, 1, 61, 100, (Weapons) 0, {true}, {0, 0}, true}; 
 
     m_scene = std::make_shared<MenuScene>();
 
@@ -799,7 +799,7 @@ void Game::renderEditor() {
             rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
             {0, 0}, 0, WHITE, flip);
         } else {
-            DrawRectangleLinesEx({(float)worldMousei.x, (float)worldMousei.y, 1.f, 1.f}, 0.1f, MAROON);
+            // DrawRectangleLinesEx({(float)worldMousei.x, (float)worldMousei.y, 1.f, 1.f}, 0.1f, MAROON);
         }
     EndMode2D();    
 

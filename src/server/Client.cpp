@@ -57,12 +57,7 @@ void Client::packetReceived(ENetPacket* packet) {
         bytes++;
 
         auto& clients = srv.getClients();
-
-        std::cout << packet->dataLength << std::endl;
-
         auto nicknameLen = packet->dataLength - 2;
-
-        std::cout << nicknameLen << std::endl;
 
         if (nicknameLen > 30) {
             // TODO: Send error to client and disconnect it
@@ -177,7 +172,7 @@ void Client::packetReceived(ENetPacket* packet) {
         playersPacket[1] = (uint8_t)(clients.size() - 1);
         auto packetIndex = 2;
 
-        m_player = {nickname, pos.x, pos.y, 100, 0, {true}};
+        m_player = {nickname, pos.x, pos.y, 100, (Weapons) 0, {true}};
         m_player.hat = hat;
 
         for (auto& [id, client] : clients) {
@@ -273,12 +268,17 @@ void Client::packetReceived(ENetPacket* packet) {
                     Weapon& wpn = weapons.at(m_player.currentWeapon);
                     float angleDeg = angle * RAD2DEG;
 
+                    std::cout << (uint8_t)m_player.currentWeapon << std::endl;
+
                     int flip = !(angleDeg >= -90 && angleDeg < 90) ? -1 : 1;
                     if (m_player.currentWeapon == SHOTGUN) {
                         std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
 
                         for (int i = 0; i < 3; i++) {
                             auto angl = angle + distr(srv.getLevel().getGen());
+                            cosA = cosf(angl);
+                            sinA = sinf(angl);
+                            std::cout << angl << std::endl;
 
                             Bullet bullet = Bullet {
                                 {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
@@ -317,7 +317,7 @@ void Client::packetReceived(ENetPacket* packet) {
                 }
             };
             case UPDATEWEAPON: {
-                auto index = *(uint8_t*)bytes;
+                auto index = *(Weapons*)bytes;
 
                 if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
                     return;

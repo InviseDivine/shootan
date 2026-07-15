@@ -175,7 +175,7 @@ struct Player {
     float x, y;
     int hp;
 
-    uint8_t currentWeapon;
+    Weapons currentWeapon;
 
     std::array<bool, WEAPONS_COUNT> inventory;
 

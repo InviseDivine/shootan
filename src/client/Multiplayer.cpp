@@ -76,11 +76,6 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
 
     m_connected = true;
 
-    std::cout << nickname << std::endl;
-
-    std::cout << nickname.length() << std::endl;
-    std::cout << nickname.size() << std::endl;
-
     auto loginPacket = new char[HEADER_SIZE + nickname.length() + 2];
     memset(loginPacket, 0, HEADER_SIZE + nickname.length() + 2);
 
@@ -183,7 +178,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 auto hp = *(int*)bytes;
                 bytes += 4;
 
-                auto weapon = *(uint8_t*)bytes;
+                auto weapon = *(Weapons*)bytes;
                 bytes++;
 
                 auto hat = *(uint8_t*)bytes;
@@ -293,7 +288,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case UPDATEWEAPON: {            
-            auto weaponID = *(uint8_t*)bytes;
+            auto weaponID = *(Weapons*)bytes;
             bytes++;
             
             auto id = *(uint32_t*)bytes;
@@ -309,7 +304,7 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         }
 
         case ADDWEAPON: {
-            auto weaponID = *(uint8_t*)bytes;
+            auto weaponID = *(Weapons*)bytes;
             bytes++;
 
             game.addWeapon(weaponID);

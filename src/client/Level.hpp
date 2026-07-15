@@ -99,8 +99,6 @@ public:
 
     bool containsSpawnpoint(RVector2 pos) {   
         for (int i = 0; i < m_respawnPoints.size(); i++) {
-            std::cout << m_respawnPoints.at(i).x << " " << m_respawnPoints.at(i).y << " " << pos.x << " " << pos.y << std::endl;
-
             if (m_respawnPoints.at(i).x == pos.x && m_respawnPoints.at(i).y == pos.y) {
                 return true;
             }
