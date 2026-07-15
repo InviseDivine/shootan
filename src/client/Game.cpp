@@ -198,7 +198,7 @@ void Game::init(std::string nickname) {
 
     SetTargetFPS(60);
 #ifdef __linux__
-    if(getenv("SteamDeck")) ToggleFullscreen()
+    if(getenv("SteamDeck")) ToggleFullscreen();
 #endif
 
     // m_editor = 1;
