@@ -102,7 +102,7 @@ void ResourceManager::drawCollectible(Collectibles index, Vector2 pos, Color col
             auto src = getSrc(SHOTGUN_SPRITE);
             Vector2 size = {src.width * zoom, src.height * zoom};
 
-            drawSpriteFromSheet(SHOTGUN_SPRITE, {pos.x, pos.y, size.x, size.y}, {0, 0}, 0, WHITE);
+            drawSpriteFromSheet(SHOTGUN_SPRITE, {pos.x + size.x / 4, pos.y + size.y / 2, size.x, size.y}, {0, 0}, 0, WHITE);
             break;
         }   
 
@@ -110,7 +110,7 @@ void ResourceManager::drawCollectible(Collectibles index, Vector2 pos, Color col
             auto src = getSrc(SNIPER_RIFLE_SPRITE);
             Vector2 size = {src.width * zoom, src.height * zoom};
 
-            drawSpriteFromSheet(SNIPER_RIFLE_SPRITE, {pos.x, pos.y, size.x, size.y}, {0, 0}, 0, WHITE);
+            drawSpriteFromSheet(SNIPER_RIFLE_SPRITE, {pos.x + size.x / 4, pos.y + size.y / 2, size.x, size.y}, {0, 0}, 0, WHITE);
 
             break;
         }
@@ -119,11 +119,19 @@ void ResourceManager::drawCollectible(Collectibles index, Vector2 pos, Color col
             auto src = getSrc(MEDKIT_SPRITE);
             Vector2 size = {src.width * zoom, src.height * zoom};
 
-            drawSpriteFromSheet(MEDKIT_SPRITE, {pos.x, pos.y, size.x, size.y}, {0, 0}, 0, WHITE);
+            drawSpriteFromSheet(MEDKIT_SPRITE, {pos.x + size.x / 4, pos.y + size.y / 2, size.x, size.y}, {0, 0}, 0, WHITE);
 
             break;
         }
 
+        case GRENADE_COLLECT :{
+            auto src = getSrc(GRENADE_SPRITE);
+            Vector2 size = {src.width * zoom, src.height * zoom};
+
+            drawSpriteFromSheet(GRENADE_SPRITE, {pos.x + size.x / 4, pos.y + size.y / 2, size.x, size.y}, {0, 0}, 0, WHITE);
+
+            break;
+        }
         default: break;
     }
 }

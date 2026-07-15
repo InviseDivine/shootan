@@ -374,9 +374,7 @@ void Client::packetReceived(ENetPacket* packet) {
             }
 
             case THROWGRENADE: {
-                m_player.grenade = COMMON;
-
-                // if (m_player.grenade != GRENADE_NONE) {
+                if (m_player.grenade != GRENADE_NONE) {
                     auto angle = *(float*)bytes;
                     auto& level = srv.getLevel();
 
@@ -386,8 +384,6 @@ void Client::packetReceived(ENetPacket* packet) {
                     std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
 
                     angle += distr(srv.getLevel().getGen());
-
-                    printf("swwqd %zu \n", level.grenadesSize());
                     
                     grenade.pos = {m_player.x + 0.5f, m_player.y + 0.5f};
                     grenade.velocity = {stats.speed * cosf(angle), stats.speed * sinf(angle)};
@@ -416,7 +412,7 @@ void Client::packetReceived(ENetPacket* packet) {
                     srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
 
                     delete [] addBulletPacket;
-                // }
+                }
                 
                 break;
             }

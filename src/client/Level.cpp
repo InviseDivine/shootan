@@ -117,7 +117,6 @@ void Level::render() {
         // && coll.type != 0) {       
 
         coll.newY = coll.newY + (float)sin(timee) * 0.002f;
-
             // DrawTexturePro(tex, {0, 0, (float)tex.width, (float)tex.height}, 
             // {coll.pos.x, coll.newY - (texHeight / 2), tex.width * 0.02f, texHeight}, {0, 0}, 0, WHITE);
         // }

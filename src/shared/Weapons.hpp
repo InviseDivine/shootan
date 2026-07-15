@@ -26,5 +26,5 @@ inline std::array<Weapon, WEAPONS_COUNT> weapons {{
 }};
 
 inline std::array<GrenadeStats, GRENADES_COUNT - 1> grenades {{
-    {3, 50, 0.7f, 180.f}, // COMMON
+    {3, 50, 0.7f, 150.f}, // COMMON
 }};

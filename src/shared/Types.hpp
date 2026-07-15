@@ -116,6 +116,7 @@ enum Collectibles : uint8_t {
     SHOTGUN_COLLECT,
     SNIPER_COLLECT,
     MEDKIT,
+    GRENADE_COLLECT,
 
     COLLECTIBLIES_COUNT
 };

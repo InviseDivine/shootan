@@ -186,6 +186,26 @@ void Level::update() {
                                 
                                 break;
                             }
+
+                            case GRENADE_COLLECT : {
+                                auto& grenade = plr.m_player.grenade;
+                                
+                                std::cout << "Grenade: " << grenade << std::endl;
+
+                                if (grenade == GRENADE_NONE) {
+                                    auto grenadePacket = new char[HEADER_SIZE + 1];
+                                    grenadePacket[0] = ADDGRENADE;
+                                    grenadePacket[1] = COMMON;
+
+                                    plr.sendPacketTo(grenadePacket, 2);
+
+                                    plr.m_player.grenade = COMMON;
+                                } else {
+                                    continue;
+                                }
+
+                                break;     
+                            }
                             default: break;
                         }
                     }

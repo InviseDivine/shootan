@@ -12,6 +12,7 @@
 #include "ResourceManager.hpp"
 #include <cstring>
 #include <MenuScene.hpp>
+#include <algorithm>
 
 void Game::setEnd(bool end, uint32_t id) {
     m_end = end;
@@ -189,7 +190,8 @@ void Game::sendMovePacket() {
     delete [] movePacket;
 }
 void Game::init(std::string nickname) {
-    InitWindow(1280, 720, "Shootan YOOO");
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    InitWindow(1280, 720, "Shootan");
 
     SetTargetFPS(60);
 
@@ -207,12 +209,6 @@ void Game::init(std::string nickname) {
     rm.init();
 
     m_player = {nickname, 1, 61, 100, 0, {true}, {0, 0}, true}; 
-
-    // if (!m_editor) {
-    //     startMpThread("localhost");
-    // } else {
-    //     m_level.read();
-    // }
 
     m_scene = std::make_shared<MenuScene>();
 
@@ -256,6 +252,10 @@ void Game::init(std::string nickname) {
 }
 void Game::update() {
     m_timer.advanceTime();
+    float zoomWidth = (float) GetScreenWidth() / 25.6;
+    float zoomHeight = (float) GetScreenHeight() / 14.4;
+
+    m_camera.zoom = fmaxf(zoomWidth, zoomHeight);
 
     auto width = GetScreenWidth();
     auto height = GetScreenHeight();
@@ -380,7 +380,7 @@ void Game::update() {
             m_player.speed.x = 0.175f;
         }
 
-        if (IsKeyPressed(KEY_F)) {
+        if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE) {
             Vector2 mousePos = GetScreenToWorld2D(GetMousePosition(), m_camera);
             Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
@@ -397,6 +397,8 @@ void Game::update() {
             
             mp.sendPacket(grenadePacket, grenadeSize, true);
             delete [] grenadePacket;
+
+            m_player.grenade = GRENADE_NONE;
         }
     } else {
         if (IsKeyPressed(KEY_ENTER)) {
@@ -771,7 +773,10 @@ void Game::updateEditor() {
 
 void Game::renderEditor() {
     auto mousePos = GetMousePosition();
-    Vector2 worldMouse = GetScreenToWorld2D({std::trunc(mousePos.x), std::trunc(mousePos.y)}, m_camera);
+    Vector2 worldMouse = GetScreenToWorld2D(mousePos, m_camera);
+    Vector2 worldMousei = { 0 };
+    worldMousei.x = (int) worldMouse.x;
+    worldMousei.y = (int) worldMouse.y;
     auto& rm = ResourceManager::get();
 
     ClearBackground({4, 4, 50, 255});
@@ -785,7 +790,7 @@ void Game::renderEditor() {
 
     BeginMode2D(m_camera);
         m_level.render();
-
+    
         if (m_testmode) {
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
             auto& hatPos = rm.getHatPos(m_player.hat);
@@ -793,6 +798,8 @@ void Game::renderEditor() {
 
             rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
             {0, 0}, 0, WHITE, flip);
+        } else {
+            DrawRectangleLinesEx({(float)worldMousei.x, (float)worldMousei.y, 1.f, 1.f}, 0.1f, MAROON);
         }
     EndMode2D();    
 
