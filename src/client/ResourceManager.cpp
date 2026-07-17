@@ -17,7 +17,7 @@ const Sprite ResourceManager::getHatSprite(Hat hat) {
         case WIZARD_HAT: return WIZARD_HAT_SPRITE;
         case LUFFY_HAT: return LUFFY_HAT_SPRITE;
         case COOL_SUNGLASSES_HAT: return COOL_SUNGLASSES_HAT_SPRITE;
-        default: return WIZARD_HAT_SPRITE;
+        default: return SPRITES_COUNT;
     }
 }
 
