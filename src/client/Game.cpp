@@ -275,7 +275,23 @@ void Game::update() {
     auto height = GetScreenHeight();
     
     m_camera.target = Vector2 {m_player.x, m_player.y};
-    Vector2 mouse = m_currentInput == 0 ? GetMousePosition() : m_gamepadCursor;
+    Vector2 mouse = GetMousePosition();
+
+    if (m_currentInput == 1) {
+        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+
+        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+
+        auto playerCenter = GetWorldToScreen2D({m_player.x + 0.5f, m_player.y + 0.5f}, m_camera);
+        
+        mouse = {
+            playerCenter.x + 200.f * rightStickX,
+            playerCenter.y + 200.f * rightStickY
+        };
+    }
+
     Vector2 worldMousePos =  GetScreenToWorld2D(mouse, m_camera);
 
     if (m_player.currentWeapon == SNIPER_RIFLE) {
@@ -386,25 +402,26 @@ void Game::update() {
                 m_player.grenade = GRENADE_NONE;
             }
 
-            if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP) || leftStickY < 0 || IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN)) {
-                if (onLadder) {
-                    // TODO: Rewrite
+            if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_RIGHT_FACE_DOWN) && m_player.onGround) {
+                m_player.speed.y = -0.3f;
+            }
+
+            if (onLadder) {
+                if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN) || leftStickY > 0) {
+                    int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+                    m_player.speed.y = 0.2f;
+                    m_player.x = playerX;
+                }
+
+                if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP) || leftStickY < 0) {
                     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 
                     m_player.speed.y = -0.2f;
                     m_player.x = playerX;
-                } else if (m_player.onGround) {
-                    m_player.speed.y = -0.3f;
                 }
-            }
-
-            if (onLadder && (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN) || leftStickY > 0)) {
-                int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
-                m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
-
-                m_player.speed.y = 0.2f;
-                m_player.x = playerX;
             }
 
             if (leftStickX > 0 || (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT))) {
@@ -595,13 +612,36 @@ void Game::update() {
 }
 void Game::render() {
     ClearBackground({4, 4, 50, 255});
-    
-    Vector2 mouse = m_currentInput == 0 ? GetMousePosition() : m_gamepadCursor;
-    Vector2 worldMousePos =  GetScreenToWorld2D(mouse, m_camera);
+
+    Vector2 mouse = GetMousePosition();
+
+    if (m_currentInput == 1) {
+        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+
+        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+
+        auto playerCenter = GetWorldToScreen2D({m_player.x + 0.5f, m_player.y + 0.5f}, m_camera);
+        std::cout << rightStickX << std::endl;
+        std::cout << rightStickY << std::endl;
+
+        mouse = {
+            playerCenter.x + 200.f * rightStickX,
+            playerCenter.y + 200.f * rightStickY
+        };
+    }
+
+    Vector2 worldMousePos = GetScreenToWorld2D(mouse, m_camera);
 
     Vector2 origin = GetScreenToWorld2D({45.f, 45.f}, m_camera);
 
     Vector2 direction = Vector2Subtract(worldMousePos, {m_player.x + 0.5f, m_player.y + 0.5f});
+    // if (m_currentInput == 1) {
+    //     if (direction.x > -0.01f && direction.x < 0.01f) direction.x = 0;
+    //     if (direction.y > -0.01f && direction.y < 0.01f) direction.x = 0;
+    // }
+    // std::cout << direction.x << " " << direction.y << std::endl;
 
     float anglePrev = 0;
     float angle = atan2f(direction.y, direction.x) * RAD2DEG;
