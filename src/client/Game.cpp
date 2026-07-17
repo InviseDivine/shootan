@@ -258,7 +258,6 @@ void Game::init(std::string nickname) {
 void Game::update() {
     m_timer.advanceTime();
 
-
     if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
         m_currentInput = 0;
     }
@@ -323,7 +322,7 @@ void Game::update() {
         }
     }
 
-    if (!m_chatOpened) {
+    if (!m_chatOpened && !m_paused) {
         auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
             m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
 
@@ -568,7 +567,7 @@ void Game::update() {
             memset(m_message, 0, sizeof(m_message));
         }
 
-        if (IsKeyPressed(KEY_ESCAPE)) m_chatOpened ^= 1;
+        if (IsKeyPressed(KEY_ESCAPE) && !m_paused) m_chatOpened ^= 1;
     }
     float wheel = GetMouseWheelMove();
 
@@ -584,6 +583,10 @@ void Game::update() {
         mp.sendPacket(updateWeapon, 2, true);
         
         delete [] updateWeapon;
+    }
+
+    if (IsKeyPressed(KEY_ESCAPE) && !m_chatOpened) {
+        m_paused ^= 1;
     }
 
     if (m_loaded) {
@@ -603,7 +606,7 @@ void Game::render() {
     float anglePrev = 0;
     float angle = atan2f(direction.y, direction.x) * RAD2DEG;
     
-    if (anglePrev != angle) {
+    if (anglePrev != angle && !m_paused) {
         anglePrev = angle;
 
         auto angleSize = HEADER_SIZE + sizeof(angle);
@@ -728,7 +731,7 @@ void Game::render() {
     float weaponY = GetScreenHeight();
 
     if (m_player.grenade != GRENADE_NONE) {
-        auto& size = rm.getSpriteSize(GRENADE_SPRITE);
+        auto size = rm.getSpriteSize(GRENADE_SPRITE);
         Vector2 destSize = {size.x * 4, size.y * 4};
 
         Rectangle dest = { 0 };
@@ -743,7 +746,7 @@ void Game::render() {
     for (int i = 0; i < WEAPONS_COUNT; i++) {
         if (m_player.inventory.at(i)) {
             auto sprite = rm.getWeaponSprite((Weapons) i);
-            auto& size = rm.getSpriteSize(sprite);
+            auto size = rm.getSpriteSize(sprite);
             Vector2 destSize = {size.x * 4, size.y * 4};
 
             Rectangle dest = { 0 };
@@ -795,9 +798,33 @@ void Game::render() {
         drawScore();
     }
     
-    if (IsKeyDown(KEY_TAB) || m_end) {
-        drawScore();
-    }    
+    if (m_paused) {
+        float buttonWidth = 200;
+        float buttonHeight = 25;
+
+        float x = (GetScreenWidth() - buttonWidth) / 2;
+        float y = (GetScreenHeight() - buttonHeight) / 2;
+
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+
+        if (GuiButton({x, y, buttonWidth, buttonHeight}, "Return to the game")) {
+            m_paused ^= 1;
+        }
+
+        y += buttonHeight * 2 - 10;
+
+        if (GuiButton({x, y, buttonWidth, buttonHeight}, "Exit")) {
+            auto& mp = Multiplayer::get();
+
+            mp.disconnect();
+            m_scene = std::make_shared<MenuScene>();
+            m_paused = false;
+        }
+    } else {
+        if ((IsKeyDown(KEY_TAB) || m_end)) {
+            drawScore();
+        } 
+    }   
 
     DrawCircleV(mouse, 3.f, WHITE);
 }

@@ -24,6 +24,9 @@ public:
     void sendPacket(char* data, int size, bool reliable);
 
     std::string getStringReason();
+
+    void setConnected(bool connected) { m_connected = connected; }
+    void disconnect();
 private:
     ENetHost* m_client;
     ENetPeer* m_peer;

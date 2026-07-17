@@ -9,6 +9,10 @@
 #include <zlib.h>
 #include "ErrorScene.hpp"
 
+void Multiplayer::disconnect() {
+    enet_peer_disconnect(m_peer, 0);
+}
+
 std::string Multiplayer::getStringReason() {
     switch (m_reason) {
         case -2: {
@@ -94,7 +98,7 @@ void Multiplayer::update() {
     
     ENetEvent event;
 
-    while (!disconnected) {
+    while (m_connected) {
         while(enet_host_service (m_client, &event, 0) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_RECEIVE: {
@@ -107,15 +111,19 @@ void Multiplayer::update() {
                 case ENET_EVENT_TYPE_DISCONNECT: {
                     printf("Disconnection succeeded. \n");
                     disconnected = true;
-                    m_reason = *(uint8_t*)(event.data);
-
+                    // m_reason = *(uint8_t*)(event.data);
+                    m_connected = false;
                     break;
                 }
                 case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
+                    auto& game = Game::get();
                     printf("Disconnection due to timeout. \n");
                     disconnected = true;
 
                     m_reason = -2;
+                    
+                    game.pushScene(std::make_shared<ErrorScene>());
+
                     break;
                 }
                 case ENET_EVENT_TYPE_NONE:
@@ -131,10 +139,6 @@ void Multiplayer::update() {
     if (!disconnected) {
         enet_peer_reset(m_peer);
     }
-
-    auto& game = Game::get();
-
-    game.pushScene(std::make_shared<ErrorScene>());
 }
 
 void Multiplayer::handlePacket(ENetPacket* packet) {     
