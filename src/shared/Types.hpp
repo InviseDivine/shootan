@@ -160,6 +160,7 @@ enum Sprite {
     COOL_SUNGLASSES_HAT_SPRITE,
     CROWN_SPRITE,
     GRENADE_SPRITE,
+    CURSOR_SPRITE,
 
     SPRITES_COUNT
 };
@@ -192,6 +193,8 @@ struct Player {
     Hat hat;
 
     Grenades grenade;
+
+    bool onLadder;
 };
 
 struct Bullet {

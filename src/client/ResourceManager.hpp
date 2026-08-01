@@ -53,5 +53,6 @@ private:
         {52, 0, 7, 6},   // COOL_SUNGLASSES_HAT_SPRITE
         {8, 20, 7, 7},   // CROWN_SPRITE
         {11, 32, 5, 5},  // GRENADE_SPRITE
+        {11, 27, 5, 5},  // CURSOR_SPRITE
     }};
 };

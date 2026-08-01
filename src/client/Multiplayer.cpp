@@ -133,7 +133,7 @@ void Multiplayer::update() {
             }
         }
 
-        sleepMs(5);
+        sleepMs(20);
     }
 
     if (!disconnected) {

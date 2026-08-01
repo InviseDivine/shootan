@@ -36,6 +36,8 @@ int Server::init() {
 }
 
 void Server::sendServerMessage(std::string msg) {
+    std::cout << msg << std::endl;
+    
     auto msgSize = HEADER_SIZE + msg.size();
 
     auto msgPacket = new char[msgSize];

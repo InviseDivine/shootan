@@ -530,12 +530,16 @@ void Level::read(const std::string& filepath) {
 
         world.read(reinterpret_cast<char*>(&spawnpointSize), sizeof(spawnpointSize));
 
+        if (spawnpointSize == 0) std::runtime_error("Spawnpoints size is zero!");
+
         m_respawnPoints.resize(spawnpointSize);
 
         world.read(reinterpret_cast<char*>(m_respawnPoints.data()), spawnpointSize * sizeof(RVector2));
 
         world.close();
-    }   
+    } else {
+        throw std::runtime_error("Couldn't open world data!");
+    }
 }
 
 std::vector<RVector2> Level::getBlocksAround(RVector2 pos, int radius) {

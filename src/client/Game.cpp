@@ -116,9 +116,7 @@ void Game::startMpThread(std::string srv) {
 }
 
 void Game::updatePlayer() {
-    if (m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) != LADDER ||
-        m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) != LADDER
-    ) {
+    if (!m_player.onLadder) {
         m_player.speed.y += 0.02f;
     }
 
@@ -159,8 +157,14 @@ void Game::updatePlayer() {
     if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
 
     if (m_player.speed.x > -0.05f && m_player.speed.x < 0.05f) m_player.speed.x = 0;
-    m_player.speed.x *= 0.91f;
-    m_player.speed.y *= 0.98f;
+
+    if (!m_player.onLadder) {
+        m_player.speed.x *= 0.91f;
+        m_player.speed.y *= 0.98f;
+    } else {
+        m_player.speed.x = 0;
+        m_player.speed.y = 0;   
+    }
 }
 
 void Game::addNotification(uint32_t id, int damage) {
@@ -225,6 +229,69 @@ void Game::init(std::string nickname) {
     m_cameraPos = {64, 120};
 
     while (!WindowShouldClose()) {
+        if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+            m_currentInput = 0;
+        }
+
+        if (IsGamepadAvailable(0)) {
+            float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+            float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+
+            float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+            float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+
+            float rightTrigger = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
+
+            if (rightTrigger < -0.9f) rightTrigger = -1.0f;
+
+            if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
+            if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
+
+            if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+            if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+
+            if (rightTrigger != -1.0f) m_currentInput = 1;
+            if (leftStickX != 0.0f) m_currentInput = 1;
+            if (rightStickX != 0.0f) m_currentInput = 1;
+            if (leftStickY != 0.0f) m_currentInput = 1;
+            if (rightStickY != 0.0f) m_currentInput = 1;
+        }
+
+        // TODO: Move to function
+        if (m_currentInput == 1) {
+            float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+            float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+            float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+            float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+
+            if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
+            if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
+
+            if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+            if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+
+            if (m_gameplayCursor) {
+                auto playerCenter = GetWorldToScreen2D({m_player.x + 0.5f, m_player.y + 0.5f}, m_camera);
+
+                if (rightStickY == 0 && rightStickX == 0) {
+                    m_cursorPos = {playerCenter.x + 3.f * (leftStickX < 0.f ? -1.f : 1.f), playerCenter.y};
+                } else {
+                    m_cursorPos = {
+                        playerCenter.x + 200.f * rightStickX,
+                        playerCenter.y + 200.f * rightStickY
+                    };
+                }
+            } else {
+                if (leftStickX > 0) m_cursorPos.x += 5;
+                if (leftStickX < 0) m_cursorPos.x -= 5;
+
+                if (leftStickY < 0) m_cursorPos.y -= 5;
+                if (leftStickY > 0) m_cursorPos.y += 5;
+            }
+        } else if (m_currentInput == 0) {
+            m_cursorPos = GetMousePosition();
+        }
+
         if (m_scene != nullptr) {
             m_scene->update();
         } else {
@@ -236,6 +303,8 @@ void Game::init(std::string nickname) {
         }
 
         BeginDrawing();
+            auto& rm = ResourceManager::get();
+
             if (m_scene != nullptr) {
                 ClearBackground(m_scene->getColor());
 
@@ -247,6 +316,8 @@ void Game::init(std::string nickname) {
                     render();
                 }
             }
+
+            rm.drawSpriteFromSheet(CURSOR_SPRITE, {m_cursorPos.x, m_cursorPos.y, 15.f, 15.f});
         EndDrawing();
 
         if (m_cleanScene) {
@@ -258,34 +329,7 @@ void Game::init(std::string nickname) {
 void Game::update() {
     m_timer.advanceTime();
 
-    if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-        m_currentInput = 0;
-    }
-
-    if (IsGamepadAvailable(0)) {
-        float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-        float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
-
-        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-
-        float rightTrigger = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
-
-        if (rightTrigger < -0.9f) rightTrigger = -1.0f;
-
-        if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
-        if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
-
-        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
-        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
-
-        if (rightTrigger != -1.0f) m_currentInput = 1;
-        if (leftStickX != 0.0f) m_currentInput = 1;
-        if (rightStickX != 0.0f) m_currentInput = 1;
-        if (leftStickY != 0.0f) m_currentInput = 1;
-        if (rightStickY != 0.0f) m_currentInput = 1;
-    }
-
+    m_gameplayCursor = m_paused ? false : true; 
     float zoomWidth = (float) GetScreenWidth() / 25.6;
     float zoomHeight = (float) GetScreenHeight() / 14.4;
 
@@ -295,24 +339,8 @@ void Game::update() {
     auto height = GetScreenHeight();
     
     m_camera.target = Vector2 {m_player.x, m_player.y};
-    Vector2 mouse = GetMousePosition();
 
-    if (m_currentInput == 1) {
-        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-
-        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
-        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
-
-        auto playerCenter = GetWorldToScreen2D({m_player.x + 0.5f, m_player.y + 0.5f}, m_camera);
-        
-        mouse = {
-            playerCenter.x + 200.f * rightStickX,
-            playerCenter.y + 200.f * rightStickY
-        };
-    }
-
-    Vector2 worldMousePos =  GetScreenToWorld2D(mouse, m_camera);
+    Vector2 worldMousePos =  GetScreenToWorld2D(m_cursorPos, m_camera);
 
     if (m_player.currentWeapon == SNIPER_RIFLE) {
         static Vector2 zoom = { 0 };
@@ -375,9 +403,6 @@ void Game::update() {
     }
 
     if (!m_chatOpened && !m_paused) {
-        auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
-            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
-
         if (IsGamepadAvailable(0) && m_currentInput == 1) { 
             float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
             float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
@@ -395,6 +420,27 @@ void Game::update() {
             if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
             if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
             
+            if (!m_player.onLadder) {
+                if ((m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER) 
+                && leftStickY != 0) {
+                    int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+                    m_player.onLadder = true;
+                    m_player.x = std::trunc(playerX);
+                    m_player.speed = {0, 0};
+                }
+            }
+
+            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_1)) {
+                if (m_player.onGround) {
+                    m_player.speed.y = -0.3f;
+                } else if (m_player.onLadder) {
+                    m_player.onLadder = false;
+                    m_player.speed.y = -0.3f;
+                }
+            }
+
             if (rightTrigger > 0) {
                 auto& rm = ResourceManager::get();
         
@@ -418,8 +464,17 @@ void Game::update() {
                 delete [] addBulletPacket;
             }
 
-            if (onLadder) {
-                if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_DOWN) || leftStickY > 0.5f) {
+            if (m_player.onLadder) {
+            // if (m_player.onLadder && IsKeyDown(KEY_W) && m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER) {
+            //     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+            //     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+            //     m_player.speed.y = -0.2f;
+            //     m_player.x = playerX;
+            // }
+            // if (m_player.onLadder && (IsKeyDown(KEY_S)) && m_level.GetBlock(std::trunc(m_player.x), std::floor(m_player.y + 1)) == LADDER) {
+
+                if (leftStickY > 0.5f && m_level.GetBlock(std::trunc(m_player.x), std::floor(m_player.y + 1)) == LADDER) {
                     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 
@@ -427,23 +482,23 @@ void Game::update() {
                     m_player.x = playerX;
                 }
 
-                if (IsGamepadButtonDown(0, GAMEPAD_BUTTON_LEFT_FACE_UP) || leftStickY < -0.5f) {
+                if (leftStickY < -0.5f && m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER) {
                     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 
                     m_player.speed.y = -0.2f;
                     m_player.x = playerX;
                 }
-            }
+            } else {
+                if (leftStickX > 0) {
+                    m_player.speed.x = 0.175f;
+                }
 
-            if (leftStickX > 0) {
-                m_player.speed.x = 0.175f;
+                if (leftStickX < 0) {
+                    m_player.speed.x = -0.175f;
+                }
             }
-
-            if (leftStickX < 0) {
-                m_player.speed.x = -0.175f;
-            }
-
+            
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_TRIGGER_1) && m_player.grenade != GRENADE_NONE) {
                 Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
@@ -463,11 +518,6 @@ void Game::update() {
 
                 m_player.grenade = GRENADE_NONE;
             }
-
-            if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_1) && m_player.onGround) {
-                m_player.speed.y = -0.3f;
-            }
-            
 
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_MIDDLE_RIGHT)) m_paused ^= 1;
 
@@ -509,133 +559,157 @@ void Game::update() {
             }
         }
 
-        for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
-            if (IsKeyPressed(KEY_ONE + i)) {
-                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-                updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = i;
-                
-                auto& mp = Multiplayer::get();
-                
-                mp.sendPacket(updateWeapon, 2, true);
-                
-                delete [] updateWeapon;
+        if (m_currentInput == 0) {
+            if (!m_player.onLadder) {
+                if ((m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER) 
+                && (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_S))) {
+                    int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+                    m_player.onLadder = true;
+                    m_player.x = std::trunc(playerX);
+                    m_player.speed = {0, 0};
+                }
             }
-        }
+
+            for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
+                if (IsKeyPressed(KEY_ONE + i)) {
+                    auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+                    updateWeapon[0] = UPDATEWEAPON;
+                    updateWeapon[1] = i;
+                    
+                    auto& mp = Multiplayer::get();
+                    
+                    mp.sendPacket(updateWeapon, 2, true);
+                    
+                    delete [] updateWeapon;
+                }
+            }
 
 
-        // TODO: Rewrite gun angle
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {  
-            auto& rm = ResourceManager::get();
-      
-            Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+            // TODO: Rewrite gun angle
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {  
+                auto& rm = ResourceManager::get();
+        
+                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
-            Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
+                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
 
-            float angle = atan2f(direction.y, direction.x);
+                float angle = atan2f(direction.y, direction.x);
 
-            auto& mp = Multiplayer::get();
+                auto& mp = Multiplayer::get();
 
-            auto addBulletPacket = new char[HEADER_SIZE + 4];
-            addBulletPacket[0] = Header::ADDBULLET;
+                auto addBulletPacket = new char[HEADER_SIZE + 4];
+                addBulletPacket[0] = Header::ADDBULLET;
 
-            *(float*)(addBulletPacket + HEADER_SIZE) = angle;
+                *(float*)(addBulletPacket + HEADER_SIZE) = angle;
 
-            mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
+                mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
 
-            m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
+                m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
 
-            delete [] addBulletPacket;
-        }
+                delete [] addBulletPacket;
+            }
 
-        if ((IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) ||  IsKeyDown(KEY_UP))) {
-            if (onLadder) {
+            if (IsKeyDown(KEY_SPACE)) {
+                if (m_player.onGround) {
+                    m_player.speed.y = -0.3f;
+                } else if (m_player.onLadder) {
+                    m_player.onLadder = false;
+                    m_player.speed.y = -0.3f;
+                }
+            }
+            
+            if (m_player.onLadder && IsKeyDown(KEY_W) && m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER) {
                 // TODO: Rewrite
                 int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                 m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 
                 m_player.speed.y = -0.2f;
                 m_player.x = playerX;
-            } else if (m_player.onGround) {
-                m_player.speed.y = -0.3f;
             }
+            if (m_player.onLadder && (IsKeyDown(KEY_S)) && m_level.GetBlock(std::trunc(m_player.x), std::floor(m_player.y + 1)) == LADDER) {
+                int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
+                m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+
+                m_player.speed.y = 0.2f;
+                m_player.x = playerX;
+            }
+
+            if (!m_player.onLadder) {
+                if (IsKeyDown(KEY_A)) {
+                    m_player.speed.x = -0.175f;
+                }
+
+                if (IsKeyDown(KEY_D)) {
+                    m_player.speed.x = 0.175f;
+                }
+            }
+
+            if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE) {
+                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+
+                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
+                auto& mp = Multiplayer::get();
+
+                float angle = atan2f(direction.y, direction.x);
+
+                auto grenadeSize = HEADER_SIZE + sizeof(angle);
+                auto grenadePacket = new char[grenadeSize];
+
+                grenadePacket[0] = Header::THROWGRENADE;
+                *(float*)(grenadePacket + 1) = angle;
+                
+                mp.sendPacket(grenadePacket, grenadeSize, true);
+                delete [] grenadePacket;
+
+                m_player.grenade = GRENADE_NONE;
+            }   
         }
 
-        if (onLadder && (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))) {
-            int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
-            m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+        float wheel = GetMouseWheelMove();
 
-            m_player.speed.y = 0.2f;
-            m_player.x = playerX;
-        }
-        if (IsKeyDown(KEY_A)) {
-            m_player.speed.x = -0.175f;
-        }
+        if (wheel != 0.f) {
+            auto move = (wheel < 0.f) ? -1 : 1;
 
-        if (IsKeyDown(KEY_D)) {
-            m_player.speed.x = 0.175f;
-        }
-
-        if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE) {
-            Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
-
-            Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
-            auto& mp = Multiplayer::get();
-
-            float angle = atan2f(direction.y, direction.x);
-
-            auto grenadeSize = HEADER_SIZE + sizeof(angle);
-            auto grenadePacket = new char[grenadeSize];
-
-            grenadePacket[0] = Header::THROWGRENADE;
-            *(float*)(grenadePacket + 1) = angle;
+            auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
+            updateWeapon[0] = UPDATEWEAPON;
+            updateWeapon[1] = m_player.currentWeapon + move < 0 ? WEAPONS_COUNT - 1 : m_player.currentWeapon + move;
             
-            mp.sendPacket(grenadePacket, grenadeSize, true);
-            delete [] grenadePacket;
+            auto& mp = Multiplayer::get();
+            
+            mp.sendPacket(updateWeapon, 2, true);
+            
+            delete [] updateWeapon;
+        }
 
-            m_player.grenade = GRENADE_NONE;
+        if (IsKeyPressed(KEY_ESCAPE) && !m_chatOpened) {
+            m_paused ^= 1;
         }
     } else {
-        if (IsKeyPressed(KEY_ENTER)) {
-            std::string msg(m_message);
-            auto& mp = Multiplayer::get();
+        if (m_currentInput == 0) {
+            if (IsKeyPressed(KEY_ENTER)) {
+                std::string msg(m_message);
+                auto& mp = Multiplayer::get();
 
-            auto msgSize = HEADER_SIZE + msg.size();
-            auto msgPacket = new char[msgSize];
+                auto msgSize = HEADER_SIZE + msg.size();
+                auto msgPacket = new char[msgSize];
 
-            msgPacket[0] = Header::MESSAGE;
+                msgPacket[0] = Header::MESSAGE;
 
-            memcpy(msgPacket + 1, msg.data(), msg.length());
+                memcpy(msgPacket + 1, msg.data(), msg.length());
 
-            mp.sendPacket(msgPacket, msgSize, true);
+                mp.sendPacket(msgPacket, msgSize, true);
 
-            delete [] msgPacket;
+                delete [] msgPacket;
 
-            m_chatOpened ^= 1;
+                m_chatOpened ^= 1;
 
-            memset(m_message, 0, sizeof(m_message));
+                memset(m_message, 0, sizeof(m_message));
+            }
+
+            if (IsKeyPressed(KEY_ESCAPE) && !m_paused) m_chatOpened ^= 1;
         }
-
-        if (IsKeyPressed(KEY_ESCAPE) && !m_paused) m_chatOpened ^= 1;
-    }
-    float wheel = GetMouseWheelMove();
-
-    if (wheel != 0.f) {
-        auto move = (wheel < 0.f) ? -1 : 1;
-
-        auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-        updateWeapon[0] = UPDATEWEAPON;
-        updateWeapon[1] = m_player.currentWeapon + move < 0 ? WEAPONS_COUNT - 1 : m_player.currentWeapon + move;
-        
-        auto& mp = Multiplayer::get();
-        
-        mp.sendPacket(updateWeapon, 2, true);
-        
-        delete [] updateWeapon;
-    }
-
-    if (IsKeyPressed(KEY_ESCAPE) && !m_chatOpened) {
-        m_paused ^= 1;
     }
 
     if (m_loaded) {
@@ -645,32 +719,7 @@ void Game::update() {
 void Game::render() {
     ClearBackground({4, 4, 50, 255});
 
-    Vector2 mouse = GetMousePosition();
-
-    if (m_currentInput == 1) {
-        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-        float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-
-        if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
-        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
-        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
-
-        auto playerCenter = GetWorldToScreen2D({m_player.x + 0.5f, m_player.y + 0.5f}, m_camera);
-
-        if (rightStickY == 0 && rightStickX == 0) {
-            mouse = {playerCenter.x + 3.f * (leftStickX < 0.f ? -1.f : 1.f), playerCenter.y};
-        } else {
-            mouse = {
-                playerCenter.x + 200.f * rightStickX,
-                playerCenter.y + 200.f * rightStickY
-            };
-        }
-
-
-    }
-
-    Vector2 worldMousePos = GetScreenToWorld2D(mouse, m_camera);
+    Vector2 worldMousePos = GetScreenToWorld2D(m_cursorPos, m_camera);
 
     Vector2 origin = GetScreenToWorld2D({45.f, 45.f}, m_camera);
 
@@ -899,8 +948,6 @@ void Game::render() {
             drawScore();
         } 
     }   
-
-    DrawCircleV(mouse, 3.f, WHITE);
 }
 
 // --------------------
@@ -927,11 +974,11 @@ void Game::updateEditor() {
             m_testmode = false;
         }
 
-        auto onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
+        m_player.onLadder = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
             m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
 
         if ((IsKeyDown(KEY_W) || IsKeyDown(KEY_SPACE) ||  IsKeyDown(KEY_UP))) {
-            if (onLadder) {
+            if (m_player.onLadder) {
                 // TODO: Rewrite
                 int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                 m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
@@ -943,7 +990,7 @@ void Game::updateEditor() {
             }
         }
 
-        if (onLadder && (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))) {
+        if (m_player.onLadder && (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN))) {
             int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
             m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 

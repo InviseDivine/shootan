@@ -75,6 +75,7 @@ void MenuScene::buttonClicked(Gui::Button* button) {
     if (button == &m_play) {
         if (!m_ip.getString().empty()) {
             game.exitEditor();
+            game.setGameplayCursor(true);
             game.startMpThread(m_ip.getString());
             game.clearScene();   
         }

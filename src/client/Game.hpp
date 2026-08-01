@@ -69,12 +69,17 @@ public:
     void enterEditor() { m_editor = true; }
     void exitEditor() { m_editor = false; }
 
+    void setGameplayCursor(bool cursor) { m_gameplayCursor = cursor; }
     std::string getLastServer() { return m_lastServer; }
     void setLastServer(std::string lastServer) { m_lastServer = lastServer; } 
-private:
-    Vector2 m_gamepadCursor;
-    int m_currentInput;
 
+    Vector2 getCursorPos() { return m_cursorPos; }
+private:
+    Vector2 m_cursorPos;
+    bool m_gameplayCursor;
+
+    int m_currentInput;
+    
     bool m_paused;
     
     std::string m_lastServer;

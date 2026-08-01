@@ -1,6 +1,9 @@
 #include <Game.hpp>
 #include <ctime>
 #include <format>
+
+#define GUI_POINTER_POSITION Game::get().getCursorPos()
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 
