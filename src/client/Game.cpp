@@ -372,11 +372,11 @@ void Game::update() {
             boxRight.x = 0;
             boxRight.y = 0;
 
-            if (CheckCollisionPointRec(worldMousePos, boxRight) && m_camera.offset.x < width / 2.0f + 300) {
+            if (CheckCollisionPointRec(GetMousePosition(), boxRight) && m_camera.offset.x < width / 2.0f + 300) {
                 zoom.x += 10.f;
             } 
 
-            if (CheckCollisionPointRec(worldMousePos, boxLeft) && m_camera.offset.x > width / 2.0f - 300) {
+            if (CheckCollisionPointRec(GetMousePosition(), boxLeft) && m_camera.offset.x > width / 2.0f - 300) {
                 zoom.x -= 10.f;
             } 
         }

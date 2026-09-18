@@ -48,7 +48,7 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
 
     bounds.y += bounds.height + 10.f;
     m_ip.setBounds(bounds);
-    m_ip.setString("sffempire.ru");
+    m_ip.setString("sffnetwork.ru");
     registerElement(&m_ip);
 
     bounds.y += bounds.height + 10.f;
