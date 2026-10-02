@@ -141,7 +141,7 @@ void Level::update() {
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
                         if (plr.m_player.hp < 100) {
-                            plr.m_player.hp += 15;
+                            plr.m_player.hp += 25;
                             if (plr.m_player.hp > 100) plr.m_player.hp = 100;
                             
                             sendHpPacket(id, plr.m_player, srv);
@@ -237,7 +237,7 @@ void Level::update() {
             auto& plr = client.second.m_player;
             Weapon& wpn = weapons.at(bullet.weaponId);
             
-            if (bullet.owner != client.first && CheckCollisionPointRec(
+            if (bullet.owner != client.first && !plr.isDied && CheckCollisionPointRec(
                 {bullet.pos.x, bullet.pos.y}, 
                 {client.second.m_player.x, client.second.m_player.y, 1.f, 1.f}) 
             ) {
@@ -257,22 +257,24 @@ void Level::update() {
                 delete [] dmgPacket;
 
                 if (client.second.m_player.hp <= 0) {
-                    plr.hp = 100;    
+                    // plr.hp = 100;    
 
-                    sendHpPacket(client.first, client.second.m_player, srv);
+                    // sendHpPacket(client.first, client.second.m_player, srv);
+                    client.second.m_player.isDied = true;    
 
                     // score
                     if (!m_roundEnd) {
                         owner.second.m_player.score++;
                         srv.sendServerMessage(std::format("{} killed by {}", client.second.m_player.nickname, owner.second.m_player.nickname));
 
-                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(int);
                         auto scorePacket = new char[scoreSize];
 
                         scorePacket[0] = Header::SETSCORE;
 
                         *(uint32_t*)(scorePacket + HEADER_SIZE) = bullet.owner;
-                        *(int*)(scorePacket + HEADER_SIZE + 4) = owner.second.m_player.score;
+                        *(uint32_t*)(scorePacket + HEADER_SIZE + 4) = client.first;
+                        *(int*)(scorePacket + HEADER_SIZE + 8) = owner.second.m_player.score;
 
                         srv.broadcast(scorePacket, scoreSize);
                         
@@ -298,23 +300,23 @@ void Level::update() {
                     }
 
                     // respawn pos
-                    auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
-                    auto movePlrPacket = new char[moveSize];
+                    // auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
+                    // auto movePlrPacket = new char[moveSize];
                     
-                    movePlrPacket[0] = MOVE;
+                    // movePlrPacket[0] = MOVE;
                     
-                    auto& pos = getRandomSpawn();
+                    // auto& pos = getRandomSpawn();
                     
-                    plr.x = pos.x;
-                    plr.y = pos.y;
+                    // plr.x = pos.x;
+                    // plr.y = pos.y;
                     
-                    *(uint32_t*)(movePlrPacket + 1) = client.first;
-                    *(float*)(movePlrPacket + 5) = pos.x;
-                    *(float*)(movePlrPacket + 9) = pos.y;
+                    // *(uint32_t*)(movePlrPacket + 1) = client.first;
+                    // *(float*)(movePlrPacket + 5) = pos.x;
+                    // *(float*)(movePlrPacket + 9) = pos.y;
 
-                    srv.broadcast(movePlrPacket, moveSize);
+                    // srv.broadcast(movePlrPacket, moveSize);
 
-                    delete [] movePlrPacket;
+                    // delete [] movePlrPacket;
                 } else {
                     sendHpPacket(client.first, client.second.m_player, srv);
                 }
@@ -404,7 +406,7 @@ void Level::update() {
             for (int y = minY; y < maxY; y++) {
                 for (int x = minX; x < maxX; x++) {
                     for (auto& [id, client] : srv.getClients()) {
-                        if ((int)client.m_player.x == x && (int)client.m_player.y == y) {
+                        if (!client.m_player.isDied && (int)client.m_player.x == x && (int)client.m_player.y == y) {
                             // TODO: Remove repeat code
                             client.m_player.hp -= stats.damage;
                             auto& owner = *srv.getClients().find(grenade.owner);
@@ -422,9 +424,10 @@ void Level::update() {
                             delete [] dmgPacket;
 
                             if (client.m_player.hp <= 0) {
-                                client.m_player.hp = 100;    
+                                // client.m_player.hp = 100;    
 
-                                sendHpPacket(id, client.m_player, srv);
+                                // sendHpPacket(id, client.m_player, srv);
+                                client.m_player.isDied = true;    
 
                                 // score
                                 if (grenade.owner != id) {
@@ -432,13 +435,14 @@ void Level::update() {
                                         owner.second.m_player.score++;
                                         srv.sendServerMessage(std::format("{} killed by {}", client.m_player.nickname, owner.second.m_player.nickname));
 
-                                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(uint32_t) + sizeof(int);
                                         auto scorePacket = new char[scoreSize];
 
                                         scorePacket[0] = Header::SETSCORE;
 
                                         *(uint32_t*)(scorePacket + HEADER_SIZE) = grenade.owner;
-                                        *(int*)(scorePacket + HEADER_SIZE + 4) = owner.second.m_player.score;
+                                        *(uint32_t*)(scorePacket + HEADER_SIZE + 4) = client.getID();
+                                        *(int*)(scorePacket + HEADER_SIZE + 8) = owner.second.m_player.score;
 
                                         srv.broadcast(scorePacket, scoreSize);
                                         
@@ -462,28 +466,46 @@ void Level::update() {
                                         
                                         delete [] endPacket;
                                     }
+                                } else {
+                                    if (!m_roundEnd) {
+                                        owner.second.m_player.score--;
+                                        srv.sendServerMessage(std::format("{} killed himself with grenade", owner.second.m_player.nickname));
+
+                                        auto scoreSize = HEADER_SIZE + sizeof(uint32_t) + sizeof(int);
+                                        auto scorePacket = new char[scoreSize];
+
+                                        scorePacket[0] = Header::SETSCORE;
+
+                                        *(uint32_t*)(scorePacket + HEADER_SIZE) = grenade.owner;
+                                        *(uint32_t*)(scorePacket + HEADER_SIZE + 4) = grenade.owner;
+                                        *(int*)(scorePacket + HEADER_SIZE + 8) = owner.second.m_player.score;
+
+                                        srv.broadcast(scorePacket, scoreSize);
+                                        
+                                        delete [] scorePacket;
+                                    }
                                 }
 
                                 // respawn pos
-                                auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(id);
-                                auto movePlrPacket = new char[moveSize];
+                                // auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(id);
+                                // auto movePlrPacket = new char[moveSize];
                                 
-                                movePlrPacket[0] = MOVE;
+                                // movePlrPacket[0] = MOVE;
                                 
-                                auto& pos = getRandomSpawn();
+                                // auto& pos = getRandomSpawn();
                                 
-                                client.m_player.x = pos.x;
-                                client.m_player.y = pos.y;
+                                // client.m_player.x = pos.x;
+                                // client.m_player.y = pos.y;
                                 
-                                *(uint32_t*)(movePlrPacket + 1) = id;
-                                *(float*)(movePlrPacket + 5) = pos.x;
-                                *(float*)(movePlrPacket + 9) = pos.y;
+                                // *(uint32_t*)(movePlrPacket + 1) = id;
+                                // *(float*)(movePlrPacket + 5) = pos.x;
+                                // *(float*)(movePlrPacket + 9) = pos.y;
 
-                                srv.broadcast(movePlrPacket, moveSize);
+                                // srv.broadcast(movePlrPacket, moveSize);
 
-                                delete [] movePlrPacket;
+                                // delete [] movePlrPacket;
                             } else {
-                                sendHpPacket(id, client.m_player, srv);
+                                sendHpPacket(client.getID(), client.m_player, srv);
                             }                        
                         }
                     }

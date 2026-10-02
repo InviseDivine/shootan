@@ -50,7 +50,8 @@ enum Header : uint8_t {
     ROUNDEND,
     THROWGRENADE,
     ADDGRENADE,
-    REMOVEGRENADE
+    REMOVEGRENADE,
+    REVIVE
 };
 
 struct Weapon {
@@ -195,6 +196,7 @@ struct Player {
     Grenades grenade;
 
     bool onLadder;
+    bool isDied;
 };
 
 struct Bullet {

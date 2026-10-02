@@ -381,9 +381,17 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
         case SETSCORE: {
             auto id = *(uint32_t*)bytes;
             bytes += 4;
+            auto killedId = *(uint32_t*)bytes;
+            bytes += 4;
             auto score = *(int*)bytes;
             bytes += 4;
-        
+            
+            if (killedId == game.getMyId()) {
+                game.setMyDied(true);
+            } else {
+                game.setDied(killedId, true);
+            }
+            
             if (id != game.getMyId()) {
                 game.setScore(id, score);
             } else {
@@ -491,6 +499,28 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
             game.getLevel().removeGrenade(id);
             
+            break;
+        }
+
+        case REVIVE: {
+            auto id = *(uint32_t*)bytes;
+            bytes += 4;
+            auto x = *(float*)bytes;
+            bytes += 4;
+            auto y = *(float*)bytes;
+            bytes += 4;
+
+            if (id != game.getMyId()) {      
+                game.setHp(id, 100);   
+                game.setDied(id, false);       
+                game.updatePlayerPos(id, x, y);
+            } else {
+                game.getPlayer().x = x;
+                game.getPlayer().y = y;
+                game.getPlayer().hp = 100;
+                game.setMyDied(false);
+            }
+
             break;
         }
         default: break;

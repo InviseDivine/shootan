@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(shooter)
+project(shootan)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -16,7 +16,7 @@ set(BUILD_EXAMPLES OFF)
 CPMAddPackage("gh:raysan5/raylib#6.0")
 CPMAddPackage("gh:zpl-c/enet#v2.6.5")
 CPMAddPackage("gh:madler/zlib#v1.3.2")
-CPMAddPackage("gh:raysan5/raygui#master")
+CPMAddPackage("gh:raysan5/raygui#5.0")
 
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/client/*.cpp

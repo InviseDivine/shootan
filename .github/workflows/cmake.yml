@@ -46,8 +46,8 @@ jobs:
           mkdir -p dist
           mkdir -p srv
 
-          find build -type f \( -name "shooter" -o -name "shooter.exe" \) -exec cp {} dist/ \;
-          find build -type f \( -name "shooter-server" -o -name "shooter-server.exe" \) -exec cp {} srv/ \;
+          find build -type f \( -name "shootan" -o -name "shootan.exe" \) -exec cp {} dist/ \;
+          find build -type f \( -name "shootan-server" -o -name "shootan-server.exe" \) -exec cp {} srv/ \;
 
           cp -r assets dist/
 

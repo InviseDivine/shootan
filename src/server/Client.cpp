@@ -211,77 +211,97 @@ void Client::packetReceived(ENetPacket* packet) {
     } else { 
         switch (header) {
             case MOVE: {
-                bool shouldExclude = true;
+                if (!m_player.isDied) {
+                    bool shouldExclude = true;
 
-                auto x = *(float*)bytes;
-                bytes += 4;
+                    auto x = *(float*)bytes;
+                    bytes += 4;
 
-                auto y = *(float*)bytes;
-                bytes += 4;
-                
-                m_player.x = x;
-                m_player.y = y;
+                    auto y = *(float*)bytes;
+                    bytes += 4;
+                    
+                    m_player.x = x;
+                    m_player.y = y;
 
-                if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
-                    auto& lvl = srv.getLevel();
-                    auto& pos = lvl.getRandomSpawn();
+                    if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
+                        auto& lvl = srv.getLevel();
+                        auto& pos = lvl.getRandomSpawn();
 
-                    m_player.x = pos.x;
-                    m_player.y = pos.y;
+                        m_player.x = pos.x;
+                        m_player.y = pos.y;
 
-                    shouldExclude = false;
+                        shouldExclude = false;
+                    }
+                    
+                    auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(m_peer->connectID);
+                    auto movePlrPacket = new char[moveSize];
+                    
+                    movePlrPacket[0] = MOVE;
+                    
+                    *(uint32_t*)(movePlrPacket + 1) = m_peer->connectID;
+                    *(float*)(movePlrPacket + 5) = m_player.x;
+                    *(float*)(movePlrPacket + 9) = m_player.y;
+
+                    if (shouldExclude) {
+                        srv.broadcastWithExclude(movePlrPacket, moveSize, m_peer->connectID);
+                    } else {
+                        srv.broadcast(movePlrPacket, moveSize);
+                    }
+
+                    delete [] movePlrPacket;
+
+                    break;
                 }
-                
-                auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(m_peer->connectID);
-                auto movePlrPacket = new char[moveSize];
-                
-                movePlrPacket[0] = MOVE;
-                
-                *(uint32_t*)(movePlrPacket + 1) = m_peer->connectID;
-                *(float*)(movePlrPacket + 5) = m_player.x;
-                *(float*)(movePlrPacket + 9) = m_player.y;
-
-                if (shouldExclude) {
-                    srv.broadcastWithExclude(movePlrPacket, moveSize, m_peer->connectID);
-                } else {
-                    srv.broadcast(movePlrPacket, moveSize);
-                }
-
-                delete [] movePlrPacket;
-
-                break;
             }
 
             case ADDBULLET: {
-                if (m_player.reload <= 0) {
-                    auto angle = *(float*)bytes;
-                    auto& level = srv.getLevel();
-                    RVector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
-                    float cosA = cosf(angle);
-                    float sinA = sinf(angle);
-                    RVector2 gunWorld = {
-                        gunPos.x * cosA - gunPos.y * sinA,
-                        gunPos.x * sinA + gunPos.y * cosA
-                    };
+                if (!m_player.isDied) {
+                    if (m_player.reload <= 0) {
+                        auto angle = *(float*)bytes;
+                        auto& level = srv.getLevel();
+                        RVector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
+                        float cosA = cosf(angle);
+                        float sinA = sinf(angle);
+                        RVector2 gunWorld = {
+                            gunPos.x * cosA - gunPos.y * sinA,
+                            gunPos.x * sinA + gunPos.y * cosA
+                        };
 
-                    // TODO: Check for walls to muzzle
-                    Weapon& wpn = weapons.at(m_player.currentWeapon);
-                    float angleDeg = angle * RAD2DEG;
+                        // TODO: Check for walls to muzzle
+                        Weapon& wpn = weapons.at(m_player.currentWeapon);
+                        float angleDeg = angle * RAD2DEG;
 
-                    std::cout << (uint8_t)m_player.currentWeapon << std::endl;
+                        std::cout << (uint8_t)m_player.currentWeapon << std::endl;
 
-                    int flip = !(angleDeg >= -90 && angleDeg < 90) ? -1 : 1;
-                    if (m_player.currentWeapon == SHOTGUN) {
-                        std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
+                        int flip = !(angleDeg >= -90 && angleDeg < 90) ? -1 : 1;
+                        if (m_player.currentWeapon == SHOTGUN) {
+                            std::uniform_real_distribution<float> distr(-0.1f, 0.1f); 
 
-                        for (int i = 0; i < 3; i++) {
-                            auto angl = angle + distr(srv.getLevel().getGen());
-                            cosA = cosf(angl);
-                            sinA = sinf(angl);
+                            for (int i = 0; i < 3; i++) {
+                                auto angl = angle + distr(srv.getLevel().getGen());
+                                cosA = cosf(angl);
+                                sinA = sinf(angl);
 
+                                Bullet bullet = Bullet {
+                                    {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
+                                    {cosA * wpn.bulletSpeed, sinA * wpn.bulletSpeed}, 
+                                    static_cast<uint32_t>(level.bulletSize()),
+                                    0,
+                                    wpn.lifeTime, 
+                                    m_peer->connectID,
+                                    m_player.currentWeapon
+                                };
+                                    
+                                level.addBullet(bullet);
+
+                                sendBullet(bullet, angl);
+                            }
+
+                            m_player.reload = wpn.reloadTime;
+                        } else {
                             Bullet bullet = Bullet {
                                 {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
-                                {cosA * wpn.bulletSpeed, sinA * wpn.bulletSpeed}, 
+                                {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
                                 static_cast<uint32_t>(level.bulletSize()),
                                 0,
                                 wpn.lifeTime, 
@@ -291,55 +311,41 @@ void Client::packetReceived(ENetPacket* packet) {
                                 
                             level.addBullet(bullet);
 
-                            sendBullet(bullet, angl);
+                            sendBullet(bullet, angle);
+                            m_player.reload = wpn.reloadTime;
                         }
-
-                        m_player.reload = wpn.reloadTime;
-                    } else {
-                        Bullet bullet = Bullet {
-                            {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
-                            {cosf(angle) * wpn.bulletSpeed, sinf(angle) * wpn.bulletSpeed}, 
-                            static_cast<uint32_t>(level.bulletSize()),
-                            0,
-                            wpn.lifeTime, 
-                            m_peer->connectID,
-                            m_player.currentWeapon
-                        };
-                            
-                        level.addBullet(bullet);
-
-                        sendBullet(bullet, angle);
-                        m_player.reload = wpn.reloadTime;
+                        
+                        break;
                     }
-                    
-                    break;
                 }
             };
             case UPDATEWEAPON: {
-                auto index = *(Weapons*)bytes;
+                if (!m_player.isDied) {
+                    auto index = *(Weapons*)bytes;
 
-                if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
-                    return;
+                    if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
+                        return;
+                    }
+
+                    if (m_player.inventory.at(index) == false) {
+                        return;
+                    }
+
+                    auto weaponSize = HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID);
+
+                    m_player.currentWeapon = index;
+                    auto updateWeapon = new char[weaponSize];
+
+                    updateWeapon[0] = UPDATEWEAPON;
+                    updateWeapon[1] = index;
+                    *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
+
+                    srv.broadcast(updateWeapon, weaponSize);
+
+                    delete [] updateWeapon;
+
+                    break;
                 }
-
-                if (m_player.inventory.at(index) == false) {
-                    return;
-                }
-
-                auto weaponSize = HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID);
-
-                m_player.currentWeapon = index;
-                auto updateWeapon = new char[weaponSize];
-
-                updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = index;
-                *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
-
-                srv.broadcast(updateWeapon, weaponSize);
-
-                delete [] updateWeapon;
-
-                break;
             }
 
             case UPDATEANGLE: {
@@ -373,7 +379,7 @@ void Client::packetReceived(ENetPacket* packet) {
             }
 
             case THROWGRENADE: {
-                if (m_player.grenade != GRENADE_NONE) {
+                if (!m_player.isDied && m_player.grenade != GRENADE_NONE) {
                     auto angle = *(float*)bytes;
                     auto& level = srv.getLevel();
 
@@ -415,6 +421,29 @@ void Client::packetReceived(ENetPacket* packet) {
                 
                 break;
             }
+
+            case REVIVE: {
+                auto reviveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(getID());
+                auto revivePacket = new char[reviveSize];
+                
+                revivePacket[0] = REVIVE;
+                
+                auto& pos = srv.getLevel().getRandomSpawn();
+                
+                m_player.x = pos.x;
+                m_player.y = pos.y;
+                
+                *(uint32_t*)(revivePacket + 1) = m_peer->connectID;
+                *(float*)(revivePacket + 5) = pos.x;
+                *(float*)(revivePacket + 9) = pos.y;
+
+                srv.broadcast(revivePacket, reviveSize);
+                m_player.hp = 100;
+                m_player.isDied = false;
+                delete [] revivePacket;
+                break;
+            }
+
             default:
                 break;
         }

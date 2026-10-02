@@ -71,12 +71,6 @@ void Game::drawScore() {
 }
 void Game::setMyHp(int hp) {
     m_player.hp = hp;
-
-    if (hp == 100) {
-        m_alpha = 255;
-        m_died = true;
-        m_diedTicks = 200.f;
-    }
 }
 
 void Game::cleanup() {
@@ -116,54 +110,56 @@ void Game::startMpThread(std::string srv) {
 }
 
 void Game::updatePlayer() {
-    if (!m_player.onLadder) {
-        m_player.speed.y += 0.02f;
-    }
+    if (!m_player.isDied) {
+        if (!m_player.onLadder) {
+            m_player.speed.y += 0.02f;
+        }
 
-    float prevX = m_player.speed.x;
-    float prevY = m_player.speed.y;
+        float prevX = m_player.speed.x;
+        float prevY = m_player.speed.y;
 
-    int blocksAroundCount = 10;
-    
-    std::vector<Vector2> blocksAroundArr = m_level.getBlocksAround({m_player.x, m_player.y}, 3);
-    
-    RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
+        int blocksAroundCount = 10;
+        
+        std::vector<Vector2> blocksAroundArr = m_level.getBlocksAround({m_player.x, m_player.y}, 3);
+        
+        RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
 
-    float x = m_player.speed.x;
-    // Check for X collision
-    for (int i = 0; i < blocksAroundArr.size(); i++) {
-        x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, x);
-    }
-    auto tempX = m_player.x + x;
+        float x = m_player.speed.x;
+        // Check for X collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, x);
+        }
+        auto tempX = m_player.x + x;
 
-    if (tempX >= 0 && tempX < WORLD_SIZE - 1) {
-        playerBox.x = m_player.x = tempX;
-    }
+        if (tempX >= 0 && tempX < WORLD_SIZE - 1) {
+            playerBox.x = m_player.x = tempX;
+        }
 
-    // printf("%f \n", x);
-    float y = m_player.speed.y;
-    // Check for Y collision
-    for (int i = 0; i < blocksAroundArr.size(); i++) {
-        y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, y);
-    }
-    m_player.y += y;
-    // printf("%f \n", y);
+        // printf("%f \n", x);
+        float y = m_player.speed.y;
+        // Check for Y collision
+        for (int i = 0; i < blocksAroundArr.size(); i++) {
+            y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, y);
+        }
+        m_player.y += y;
+        // printf("%f \n", y);
 
-    m_player.onGround = prevY != y && prevY > 0.f;
-    // Stop motion on collision
-    if (prevX != x) m_player.speed.x = 0.f;
-    if (prevY != y) m_player.speed.y = 0.f;
+        m_player.onGround = prevY != y && prevY > 0.f;
+        // Stop motion on collision
+        if (prevX != x) m_player.speed.x = 0.f;
+        if (prevY != y) m_player.speed.y = 0.f;
 
-    if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
+        if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
 
-    if (m_player.speed.x > -0.05f && m_player.speed.x < 0.05f) m_player.speed.x = 0;
+        if (m_player.speed.x > -0.05f && m_player.speed.x < 0.05f) m_player.speed.x = 0;
 
-    if (!m_player.onLadder) {
-        m_player.speed.x *= 0.91f;
-        m_player.speed.y *= 0.98f;
-    } else {
-        m_player.speed.x = 0;
-        m_player.speed.y = 0;   
+        if (!m_player.onLadder) {
+            m_player.speed.x *= 0.91f;
+            m_player.speed.y *= 0.98f;
+        } else {
+            m_player.speed.x = 0;
+            m_player.speed.y = 0;   
+        }
     }
 }
 
@@ -184,17 +180,19 @@ void Game::addNotification(int score) {
 }
 
 void Game::sendMovePacket() {
-    auto moveSize = HEADER_SIZE + sizeof(float) * 2;
-    auto movePacket = new char[moveSize];
-    auto& mp = Multiplayer::get();
-    
-    movePacket[0] = MOVE;
-    *(float*)(movePacket + 1) = m_player.x;
-    *(float*)(movePacket + 5) = m_player.y;
+    if (!m_player.isDied) {
+        auto moveSize = HEADER_SIZE + sizeof(float) * 2;
+        auto movePacket = new char[moveSize];
+        auto& mp = Multiplayer::get();
+        
+        movePacket[0] = MOVE;
+        *(float*)(movePacket + 1) = m_player.x;
+        *(float*)(movePacket + 5) = m_player.y;
 
-    mp.sendPacket(movePacket, moveSize, true);
+        mp.sendPacket(movePacket, moveSize, true);
 
-    delete [] movePacket;
+        delete [] movePacket;
+    }
 }
 void Game::init(std::string nickname) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
@@ -341,10 +339,9 @@ void Game::update() {
     m_camera.target = Vector2 {m_player.x, m_player.y};
 
     Vector2 worldMousePos =  GetScreenToWorld2D(m_cursorPos, m_camera);
+    static Vector2 zoom = { 0 };
 
     if (m_player.currentWeapon == SNIPER_RIFLE) {
-        static Vector2 zoom = { 0 };
-
         if (m_currentInput == 1 && IsGamepadAvailable(0)) {
             float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
             float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
@@ -384,14 +381,20 @@ void Game::update() {
         m_camera.offset = Vector2 { width / 2.0f + zoom.x, height / 2.0f + zoom.y};  
     } else {
         m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };  
+        zoom = {0, 0};
     }
     
     Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
     Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
 
-    if (max.x < width) m_camera.offset.x = width - (max.x - (float)width/2);
+    if (max.x < width) { 
+        m_camera.offset.x = width - (max.x - (float)width/2);
+    };
+    if (min.x > 0) {
+        m_camera.offset.x = (float)width/2 - min.x;
+    };
+
     if (max.y < height) m_camera.offset.y = height - (max.y - (float)height/2);
-    if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
     if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
 
     for (uint32_t i = 0; i < m_timer.getTicks(); i++) {
@@ -403,6 +406,18 @@ void Game::update() {
     }
 
     if (!m_chatOpened && !m_paused) {
+        if (m_player.isDied && IsKeyPressed(KEY_R)) {
+            auto reviveSize = HEADER_SIZE;
+            auto revivePacket = new char[reviveSize];
+            auto& mp = Multiplayer::get();
+            
+            revivePacket[0] = REVIVE;
+
+            mp.sendPacket(revivePacket, reviveSize, true);
+
+            delete [] revivePacket;
+        }
+
         if (IsGamepadAvailable(0) && m_currentInput == 1) { 
             float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
             float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
@@ -563,7 +578,7 @@ void Game::update() {
             if (!m_player.onLadder) {
                 if ((m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
                     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER) 
-                && (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_S))) {
+                && (IsKeyDown(KEY_W) || IsKeyPressed(KEY_S))) {
                     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
                     m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
                     m_player.onLadder = true;
@@ -718,7 +733,7 @@ void Game::update() {
 }
 void Game::render() {
     ClearBackground({4, 4, 50, 255});
-
+    
     Vector2 worldMousePos = GetScreenToWorld2D(m_cursorPos, m_camera);
 
     Vector2 origin = GetScreenToWorld2D({45.f, 45.f}, m_camera);
@@ -750,39 +765,47 @@ void Game::render() {
 
     BeginMode2D(m_camera);
         m_level.render();
+
+        // Players
         for (auto& [_, client] : m_players) {  
+            if (!client.isDied) {
+                auto fontSize = 0.5f;
+                auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
+                float spacing = 0.05f;
 
-            auto fontSize = 0.5f;
-            auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
-            float spacing = 0.05f;
+                int flipClient = !(client.angle >= -90 && client.angle < 90) ? 1 : 0;
 
-            int flipClient = !(client.angle >= -90 && client.angle < 90) ? 1 : 0;
+                rm.drawSpriteFromSheet(PLAYER_SPRITE, {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flipClient);
 
-            rm.drawSpriteFromSheet(PLAYER_SPRITE, {client.x, client.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flipClient);
+                if (m_player.hat != NONE_HAT) {
+                    auto& hatPos = rm.getHatPos(client.hat);
+                    auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
+
+                    rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+                    {0, 0}, 0, WHITE, flipClient);
+                }
+
+                rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
+
+                DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
+            }
+        }
+        
+        // Current player
+
+        if (!m_player.isDied) {
+            rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
 
             if (m_player.hat != NONE_HAT) {
-                auto& hatPos = rm.getHatPos(client.hat);
-                auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
+                auto& hatPos = rm.getHatPos(m_player.hat);
+                auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
 
-                rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-                {0, 0}, 0, WHITE, flipClient);
+                rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
+                {0, 0}, 0, WHITE, flip);
             }
 
-            rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
-
-            DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
+            rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
         }
-        rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
-
-        if (m_player.hat != NONE_HAT) {
-            auto& hatPos = rm.getHatPos(m_player.hat);
-            auto& hatSize = rm.getSpriteSize(rm.getHatSprite(m_player.hat));
-
-            rm.drawSpriteFromSheet(rm.getHatSprite(m_player.hat), {m_player.x + hatPos.x / 8, m_player.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-            {0, 0}, 0, WHITE, flip);
-        }
-
-        rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
 
     EndMode2D();
     
@@ -790,7 +813,7 @@ void Game::render() {
     DrawFPS(0, 0);
     DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
 
-    if (m_player.reload > 0) {
+    if (m_player.reload > 0 && !m_player.isDied) {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
     
@@ -905,13 +928,14 @@ void Game::render() {
         } else {
             m_alpha = 0;
         }
+
         if (m_diedTicks > 0) {
             m_diedTicks -= 0.5f;
 
             auto fontSize = 30;
             auto text = "You died!";
             auto width = MeasureText(text, fontSize);
-            DrawText("You died!", (GetScreenWidth() - width) / 2, GetScreenHeight() / 2, fontSize, {255, m_alpha, m_alpha, m_alpha});
+            DrawText("You died!", (GetScreenWidth() - width) / 2, GetScreenHeight() / 2 - 30 * 3, fontSize, {255, m_alpha, m_alpha, m_alpha});
         } else {
             m_died = false;
         }
@@ -921,6 +945,14 @@ void Game::render() {
         drawScore();
     }
     
+    if (m_player.isDied && !m_paused) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+
+        auto text = "You died! Press R to respawn";
+
+        DrawText(text, (GetScreenWidth() - MeasureText(text, 30)) / 2, (GetScreenHeight() - 30) / 2, 30, WHITE);
+    }
+
     if (m_paused) {
         float buttonWidth = 200;
         float buttonHeight = 25;
@@ -947,7 +979,7 @@ void Game::render() {
         if ((IsKeyDown(KEY_TAB) || m_end)) {
             drawScore();
         } 
-    }   
+    }
 }
 
 // --------------------

@@ -74,6 +74,21 @@ public:
     void setLastServer(std::string lastServer) { m_lastServer = lastServer; } 
 
     Vector2 getCursorPos() { return m_cursorPos; }
+
+    void setDied(uint32_t id, bool died) { m_players.at(id).isDied = died; }
+    void setMyDied(bool died) {
+        m_player.isDied = died; 
+
+        if (died) {
+            m_alpha = 255;
+            m_died = true;
+            m_diedTicks = 200.f;
+            
+            m_player.hp = 0;
+        } else {
+            m_player.hp = 100;
+        }
+    }
 private:
     Vector2 m_cursorPos;
     bool m_gameplayCursor;
