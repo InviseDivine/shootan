@@ -39,7 +39,11 @@ public:
     
     void setScore(uint32_t id, uint32_t score) { m_players.at(id).score = score; }
     void setHp(uint32_t id, int hp) { m_players.at(id).hp = hp; }
-    void setAngle(uint32_t id, float angle) { m_players.at(id).angle = angle; }
+    void setAngle(uint32_t id, float angle) { 
+        if (m_players.contains(id)) {
+            m_players.at(id).angle = angle; 
+        } 
+    }
 
     void renderEditor();
     void updateEditor();
@@ -83,12 +87,14 @@ public:
             m_alpha = 255;
             m_died = true;
             m_diedTicks = 200.f;
-            
+
             m_player.hp = 0;
         } else {
             m_player.hp = 100;
         }
     }
+
+    std::string getSetting(std::string key);
 private:
     Vector2 m_cursorPos;
     bool m_gameplayCursor;
@@ -98,6 +104,7 @@ private:
     bool m_paused;
     
     std::string m_lastServer;
+    int m_lastPort;
 
     bool m_cleanScene;
     std::shared_ptr<Scene> m_scene;
@@ -139,6 +146,7 @@ private:
     unsigned char m_alpha;
     float m_diedTicks;
     
+
     void update();
     void render();
 

@@ -187,7 +187,7 @@ struct Player {
 
     int score;  
 
-    float reload;
+    std::array<float, WEAPONS_COUNT> reload;
 
     float angle;
     

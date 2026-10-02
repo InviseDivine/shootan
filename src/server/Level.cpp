@@ -87,7 +87,7 @@ void Level::restartGame() {
         delete [] movePlrPacket;
 
         plr.m_player.inventory = {true};
-        plr.m_player.reload = 0;
+        plr.m_player.reload = {};
         plr.m_player.hp = 100;
         plr.m_player.currentWeapon = (Weapons) 0;
 
@@ -141,7 +141,7 @@ void Level::update() {
                 if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
                     if (coll.type == MEDKIT) {
                         if (plr.m_player.hp < 100) {
-                            plr.m_player.hp += 25;
+                            plr.m_player.hp += 15;
                             if (plr.m_player.hp > 100) plr.m_player.hp = 100;
                             
                             sendHpPacket(id, plr.m_player, srv);
@@ -298,25 +298,6 @@ void Level::update() {
                         
                         delete [] endPacket;
                     }
-
-                    // respawn pos
-                    // auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(client.first);
-                    // auto movePlrPacket = new char[moveSize];
-                    
-                    // movePlrPacket[0] = MOVE;
-                    
-                    // auto& pos = getRandomSpawn();
-                    
-                    // plr.x = pos.x;
-                    // plr.y = pos.y;
-                    
-                    // *(uint32_t*)(movePlrPacket + 1) = client.first;
-                    // *(float*)(movePlrPacket + 5) = pos.x;
-                    // *(float*)(movePlrPacket + 9) = pos.y;
-
-                    // srv.broadcast(movePlrPacket, moveSize);
-
-                    // delete [] movePlrPacket;
                 } else {
                     sendHpPacket(client.first, client.second.m_player, srv);
                 }
@@ -345,8 +326,12 @@ void Level::update() {
     }
 
     for (auto& [_, plr] : srv.getClients()) {
-        if (plr.m_player.reload > 0) {
-            plr.m_player.reload -= 1.f;
+        for (int i = 0; i < plr.m_player.reload.size(); i++) {
+            auto& reload = plr.m_player.reload.at(i);
+
+            if (reload > 0) {
+                reload -= 1.f;
+            }
         }
     }
 

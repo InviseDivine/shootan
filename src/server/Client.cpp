@@ -256,7 +256,7 @@ void Client::packetReceived(ENetPacket* packet) {
 
             case ADDBULLET: {
                 if (!m_player.isDied) {
-                    if (m_player.reload <= 0) {
+                    if (m_player.reload.at(m_player.currentWeapon) <= 0) {
                         auto angle = *(float*)bytes;
                         auto& level = srv.getLevel();
                         RVector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
@@ -297,7 +297,7 @@ void Client::packetReceived(ENetPacket* packet) {
                                 sendBullet(bullet, angl);
                             }
 
-                            m_player.reload = wpn.reloadTime;
+                            m_player.reload.at(m_player.currentWeapon) = wpn.reloadTime;
                         } else {
                             Bullet bullet = Bullet {
                                 {gunWorld.x + 0.2f + m_player.x, gunWorld.y + m_player.y + 0.3f},   
@@ -312,7 +312,7 @@ void Client::packetReceived(ENetPacket* packet) {
                             level.addBullet(bullet);
 
                             sendBullet(bullet, angle);
-                            m_player.reload = wpn.reloadTime;
+                            m_player.reload.at(m_player.currentWeapon) = wpn.reloadTime;
                         }
                         
                         break;

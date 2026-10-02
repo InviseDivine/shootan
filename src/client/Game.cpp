@@ -13,6 +13,26 @@
 #include <cstring>
 #include <MenuScene.hpp>
 #include <algorithm>
+#include <fstream>
+
+std::string Game::getSetting(std::string key) {
+    std::ifstream config("config.txt");
+    std::string line;
+
+    if (config.is_open()) {
+        while (std::getline(config, line)) {
+            if (line.starts_with(key)) {
+                auto toFind = key + "=";
+
+                auto value = line.substr(line.find(toFind), line.size() - toFind.size());
+
+                return value;
+            }
+        }
+    }
+
+    return "";
+}
 
 void Game::setEnd(bool end, uint32_t id) {
     m_end = end;
@@ -105,6 +125,7 @@ void Game::startMpThread(std::string srv) {
     auto& mp = Multiplayer::get();
 
     m_lastServer = srv;
+    m_lastPort = port;
 
     std::thread(&Multiplayer::init, &mp, m_player.nickname, ip, port).detach();
 }
@@ -197,6 +218,32 @@ void Game::sendMovePacket() {
 void Game::init(std::string nickname) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1280, 720, "Shootan");
+    
+    // std::ifstream config("config.txt");
+
+    // if (config.is_open()) {
+    //     auto hat = getSetting("hat");
+
+    //     if (hat != "") {
+    //         m_player.hat = (Hat)std::stoi(hat);
+    //     }
+
+    //     auto server = getSetting("server");
+
+    //     if (hat != "") {
+    //         m_lastServer = (Hat)std::stoi(hat);
+    //     }
+
+    //     config.close();
+    // } else {
+    //     std::ofstream configWrite("config.txt");
+        
+    //     configWrite << "server=sffnetwork.ru" << std::endl;
+    //     configWrite << "nickname=" << std::format("Player-{}", rand() % 1000) << std::endl;
+    //     configWrite << "hat=0";
+        
+    //     configWrite.close()
+    // }
 
     SetTargetFPS(60);
 #ifdef __linux__
@@ -369,12 +416,12 @@ void Game::update() {
             boxRight.x = 0;
             boxRight.y = 0;
 
-            if (CheckCollisionPointRec(GetMousePosition(), boxRight) && m_camera.offset.x < width / 2.0f + 300) {
-                zoom.x += 10.f;
+            if (CheckCollisionPointRec(GetMousePosition(), boxRight) && m_camera.offset.x < width / 2.0f + 600) {
+                zoom.x += 15.f;
             } 
 
-            if (CheckCollisionPointRec(GetMousePosition(), boxLeft) && m_camera.offset.x > width / 2.0f - 300) {
-                zoom.x -= 10.f;
+            if (CheckCollisionPointRec(GetMousePosition(), boxLeft) && m_camera.offset.x > width / 2.0f - 600) {
+                zoom.x -= 15.f;
             } 
         }
 
@@ -399,9 +446,13 @@ void Game::update() {
 
     for (uint32_t i = 0; i < m_timer.getTicks(); i++) {
         m_level.update();
+        
+        for (int i = 0; i < m_player.reload.size(); i++) {
+            auto& reload = m_player.reload.at(i);
 
-        if (m_player.reload > 0) {
-            m_player.reload -= 1.f;
+            if (reload > 0) {
+                reload -= 1.f;
+            }
         }
     }
 
@@ -474,7 +525,7 @@ void Game::update() {
 
                 mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
 
-                m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
+                m_player.reload.at(m_player.currentWeapon) = weapons.at(m_player.currentWeapon).reloadTime;
 
                 delete [] addBulletPacket;
             }
@@ -621,7 +672,7 @@ void Game::update() {
 
                 mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
 
-                m_player.reload = weapons.at(m_player.currentWeapon).reloadTime;
+                m_player.reload.at(m_player.currentWeapon) = weapons.at(m_player.currentWeapon).reloadTime;
 
                 delete [] addBulletPacket;
             }
@@ -770,7 +821,11 @@ void Game::render() {
         for (auto& [_, client] : m_players) {  
             if (!client.isDied) {
                 auto fontSize = 0.5f;
-                auto text = TextFormat("%s %d", client.nickname.c_str(), client.hp);
+                Color color = client.hp > 60 ? GREEN : client.hp > 25 ? ORANGE : RED;
+
+                auto nickname = TextFormat("%s", client.nickname.c_str());
+                auto hp = TextFormat(" %d", client.hp);
+
                 float spacing = 0.05f;
 
                 int flipClient = !(client.angle >= -90 && client.angle < 90) ? 1 : 0;
@@ -780,14 +835,24 @@ void Game::render() {
                 if (m_player.hat != NONE_HAT) {
                     auto& hatPos = rm.getHatPos(client.hat);
                     auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
-
+                        
                     rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
                     {0, 0}, 0, WHITE, flipClient);
                 }
 
                 rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
+                
+                DrawTextPro(GetFontDefault(), 
+                nickname, 
+                {client.x - (MeasureTextEx(GetFontDefault(), nickname, fontSize, spacing).x / 4),
+                    client.y - 0.55f},
+                {0, 0}, 0, fontSize, spacing, WHITE);
 
-                DrawTextPro(GetFontDefault(), text, {client.x - (MeasureTextEx(GetFontDefault(), text, fontSize, spacing).x / 4), client.y - 0.55f}, {0, 0}, 0, fontSize, spacing, WHITE);
+                DrawTextPro(GetFontDefault(), 
+                hp, 
+                {client.x + MeasureTextEx(GetFontDefault(), nickname, fontSize, spacing).x / 1.5f + 0.25f,
+                    client.y - 0.55f},
+                {0, 0}, 0, fontSize, spacing, color);
             }
         }
         
@@ -813,7 +878,7 @@ void Game::render() {
     DrawFPS(0, 0);
     DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
 
-    if (m_player.reload > 0 && !m_player.isDied) {
+    if (m_player.reload.at(m_player.currentWeapon) > 0 && !m_player.isDied) {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
     
@@ -935,7 +1000,7 @@ void Game::render() {
             auto fontSize = 30;
             auto text = "You died!";
             auto width = MeasureText(text, fontSize);
-            DrawText("You died!", (GetScreenWidth() - width) / 2, GetScreenHeight() / 2 - 30 * 3, fontSize, {255, m_alpha, m_alpha, m_alpha});
+            DrawText(text, (GetScreenWidth() - width) / 2, GetScreenHeight() / 2 - 30 * 3, fontSize, {255, m_alpha, m_alpha, m_alpha});
         } else {
             m_died = false;
         }
