@@ -457,6 +457,10 @@ void Game::update() {
     }
 
     if (!m_chatOpened && !m_paused) {
+        if (IsKeyPressed(KEY_F3)) {
+            m_showDebug ^= 1;
+        }
+
         if (m_player.isDied && IsKeyPressed(KEY_R)) {
             auto reviveSize = HEADER_SIZE;
             auto revivePacket = new char[reviveSize];
@@ -875,8 +879,10 @@ void Game::render() {
     EndMode2D();
     
     // Debug info
-    DrawFPS(0, 0);
-    DrawText(TextFormat("%f\n%f", m_player.x, m_player.y), 0, 20, 20, WHITE);
+    if (m_showDebug) {
+        DrawText(TextFormat("FPS: %d", GetFPS()), 0, 0, 20, WHITE);
+        DrawText(TextFormat("X: %f\nY: %f", m_player.x, m_player.y), 0, 20, 20, WHITE);
+    }
 
     if (m_player.reload.at(m_player.currentWeapon) > 0 && !m_player.isDied) {
         DrawText("Reloading...", 0, 80, 40, WHITE);

@@ -146,7 +146,8 @@ private:
     unsigned char m_alpha;
     float m_diedTicks;
     
-
+    bool m_showDebug;
+    
     void update();
     void render();
 
