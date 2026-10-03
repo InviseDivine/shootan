@@ -716,7 +716,7 @@ void Game::update() {
                 }
             }
 
-            if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE) {
+            if (IsKeyPressed(KEY_F) && m_player.grenade != GRENADE_NONE && !m_player.isDied) {
                 Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
 
                 Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
@@ -1010,6 +1010,10 @@ void Game::render() {
         } else {
             m_died = false;
         }
+    }
+    
+    if (m_player.hp < 25) {
+        DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {255, 0, 0, 15});
     }
 
     if (IsGamepadAvailable(0) && IsGamepadButtonDown(0, GAMEPAD_BUTTON_MIDDLE_LEFT)) {

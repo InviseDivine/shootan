@@ -24,6 +24,8 @@ const Sprite ResourceManager::getHatSprite(Hat hat) {
 void ResourceManager::init() {
     m_spritesheet = LoadTexture("assets/spritesheet.png");
     m_blocks = LoadTexture("assets/blocks.png");
+    SetTextureFilter(m_blocks, TEXTURE_FILTER_POINT);
+    SetTextureWrap(m_blocks, TEXTURE_WRAP_CLAMP);   
 }
 
 const Vector2 ResourceManager::getSpriteSize(Sprite index) {
@@ -31,10 +33,11 @@ const Vector2 ResourceManager::getSpriteSize(Sprite index) {
 }
 
 void ResourceManager::drawBlock(Block block, Rectangle dest, Color color) {
-    int xSrc = (block % 16) * 8.f;
-    int ySrc = (block / 16) * 8.f;
+    float epsilon = 0.05f;
+    int xSrc  = (block % 16) * 8.f;
+    int ySrc  = (block / 16) * 8.f;
     
-    DrawTexturePro(m_blocks, {(float)xSrc, (float)ySrc, 8.f, 8.f}, dest, {0, 0}, 0, color);
+    DrawTexturePro(m_blocks, {(float)xSrc + epsilon, (float)ySrc + epsilon, 8.f - 2.f * epsilon, 8.f - 2.f * epsilon}, dest, {0, 0}, 0, color);
 }
 
 void ResourceManager::drawBlockWorld(Block block, Vector2 pos, Color color) {

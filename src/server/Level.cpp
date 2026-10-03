@@ -138,7 +138,7 @@ void Level::update() {
                 
                 coll.respawnTime -= 1.f;
             } else {
-                if (CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f})) {
+                if (!plr.m_player.isDied && CheckCollisionPointRec({coll.pos.x, coll.pos.y}, {plr.m_player.x, plr.m_player.y, 1.f, 1.f}) ) {
                     if (coll.type == MEDKIT) {
                         if (plr.m_player.hp < 100) {
                             plr.m_player.hp += 15;
@@ -149,7 +149,7 @@ void Level::update() {
                             continue;
                         }
                     } else {
-                        // TODO: it can be better?
+                        // TODO: can it be better?
                         switch (coll.type) {
                             case SHOTGUN_COLLECT: {
                                 auto& inv = plr.m_player.inventory;
