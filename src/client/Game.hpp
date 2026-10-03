@@ -18,8 +18,17 @@ public:
 
     // TODO: Move the whole funcs to class Level
     void addPlayer(uint32_t id, Player player) { m_players.emplace(id, player); }
-    void updatePlayerPos(uint32_t id, float x, float y) { m_players.at(id).x = x; m_players.at(id).y = y; }
-    void removePlayer(uint32_t id) { m_players.erase(id); }
+    void updatePlayerPos(uint32_t id, float x, float y) {
+        if (m_players.contains(id)) {
+            m_players.at(id).x = x;
+            m_players.at(id).y = y;
+        }
+    }
+    void removePlayer(uint32_t id) {
+        if (m_players.contains(id)) {
+            m_players.erase(id); 
+        }
+    }
     
     void setMyId(uint32_t id) { m_myId = id; }
     uint32_t getMyId() { return m_myId; }
@@ -37,8 +46,16 @@ public:
 
     void sendMovePacket();
     
-    void setScore(uint32_t id, uint32_t score) { m_players.at(id).score = score; }
-    void setHp(uint32_t id, int hp) { m_players.at(id).hp = hp; }
+    void setScore(uint32_t id, uint32_t score) {
+        if (m_players.contains(id)) {
+            m_players.at(id).score = score;
+        }
+    }
+    void setHp(uint32_t id, int hp) { 
+        if (m_players.contains(id)) {
+            m_players.at(id).hp = hp;
+        }
+    }
     void setAngle(uint32_t id, float angle) { 
         if (m_players.contains(id)) {
             m_players.at(id).angle = angle; 
@@ -79,7 +96,11 @@ public:
 
     Vector2 getCursorPos() { return m_cursorPos; }
 
-    void setDied(uint32_t id, bool died) { m_players.at(id).isDied = died; }
+    void setDied(uint32_t id, bool died) { 
+        if (m_players.contains(id)) {
+            m_players.at(id).isDied = died;
+        }
+    }
     void setMyDied(bool died) {
         m_player.isDied = died; 
 
@@ -96,16 +117,7 @@ public:
 
     std::string getSetting(std::string key);
 private:
-    Vector2 m_cursorPos;
-    bool m_gameplayCursor;
-
-    int m_currentInput;
-    
-    bool m_paused;
-    
-    std::string m_lastServer;
-    int m_lastPort;
-
+    // Funny things
     bool m_cleanScene;
     std::shared_ptr<Scene> m_scene;
 
@@ -115,6 +127,13 @@ private:
     RVector2 m_cameraPos;
 
     Level m_level;
+
+    // Controls
+    Vector2 m_cursorPos;
+    bool m_gameplayCursor;
+    int m_currentInput;
+
+    bool m_paused;
 
     // Editor
     Block m_currentBlock;
@@ -133,6 +152,10 @@ private:
     std::unordered_map<uint32_t, Player> m_players;
 
     bool m_end;
+    
+    std::string m_lastServer;
+    int m_lastPort;
+
     uint32_t m_winner;
 
     // Visual
@@ -148,6 +171,7 @@ private:
     
     bool m_showDebug;
     
+    // Functions
     void update();
     void render();
 

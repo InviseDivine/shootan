@@ -371,6 +371,10 @@ void Game::init(std::string nickname) {
         }
     }
 }
+
+// --------------------
+//      Main game
+// --------------------
 void Game::update() {
     m_timer.advanceTime();
 
@@ -1058,7 +1062,7 @@ void Game::render() {
 }
 
 // --------------------
-// Editor
+//       Editor
 // --------------------
 void Game::updateEditor() {
     auto width = GetScreenWidth();

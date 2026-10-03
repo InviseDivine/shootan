@@ -11,6 +11,7 @@
    
 #define PI 3.14159265358979323846f
 #define RAD2DEG (180.0f/PI)
+#define MAX_NAME_LEN 30
 
 std::array<RVector2, WEAPONS_COUNT> weaponsSize {{
     {1.2f, 0.72f},  // PISTOL
@@ -59,7 +60,7 @@ void Client::packetReceived(ENetPacket* packet) {
         auto& clients = srv.getClients();
         auto nicknameLen = packet->dataLength - 2;
 
-        if (nicknameLen > 30) {
+        if (nicknameLen > MAX_NAME_LEN) {
             // TODO: Send error to client and disconnect it
             return;
         }
@@ -165,7 +166,8 @@ void Client::packetReceived(ENetPacket* packet) {
 
         auto clientsCount = clients.size();
 
-        auto playerPacketSize = HEADER_SIZE + sizeof(clientsCount) + (sizeof(Player) + sizeof(uint32_t)) * (clientsCount - 1);
+        auto playerPacketSize = HEADER_SIZE + 
+        sizeof(clientsCount) + (sizeof(float) * 2 + sizeof(uint16_t) + MAX_NAME_LEN + sizeof(uint8_t) * 4 + sizeof(uint32_t)) * (clientsCount - 1);
         auto playersPacket = new char[playerPacketSize];
 
         playersPacket[0] = Header::AUTH;
@@ -190,11 +192,13 @@ void Client::packetReceived(ENetPacket* packet) {
                 memcpy(playersPacket + packetIndex, client.m_player.nickname.c_str(), client.m_player.nickname.length());
                 packetIndex += client.m_player.nickname.length();
 
-                *(int*)(playersPacket + packetIndex) = client.m_player.hp;
-                packetIndex += 4;
+                *(uint8_t*)(playersPacket + packetIndex) = client.m_player.hp;
+                packetIndex++;
                 *(uint8_t*)(playersPacket + packetIndex) = client.m_player.currentWeapon;
                 packetIndex++;
                 *(uint8_t*)(playersPacket + packetIndex) = client.m_player.hat;
+                packetIndex++;
+                *(uint8_t*)(playersPacket + packetIndex) = client.m_player.isDied;
                 packetIndex++;
             } 
         }

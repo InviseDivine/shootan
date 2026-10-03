@@ -179,8 +179,8 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 
                 bytes += nameLen;
 
-                auto hp = *(int*)bytes;
-                bytes += 4;
+                auto hp = *(uint8_t*)bytes;
+                bytes++;
 
                 auto weapon = *(Weapons*)bytes;
                 bytes++;
@@ -188,8 +188,14 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
                 auto hat = *(uint8_t*)bytes;
                 bytes++;
 
+                auto isDied = *(uint8_t*)bytes;
+                bytes++;
+
                 auto p = Player(name, x, y, hp, weapon);
                 p.hat = (Hat) hat;
+                p.isDied = isDied;
+                std::cout << "Is died " << isDied << std::endl;
+                 
                 game.addPlayer(id, p);
             }
 
