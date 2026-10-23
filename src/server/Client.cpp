@@ -224,9 +224,6 @@ void Client::packetReceived(ENetPacket* packet) {
                     auto y = *(float*)bytes;
                     bytes += 4;
                     
-                    m_player.x = x;
-                    m_player.y = y;
-
                     if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
                         auto& lvl = srv.getLevel();
                         auto& pos = lvl.getRandomSpawn();
@@ -235,6 +232,9 @@ void Client::packetReceived(ENetPacket* packet) {
                         m_player.y = pos.y;
 
                         shouldExclude = false;
+                    } else {
+                        m_player.x = x;
+                        m_player.y = y;
                     }
                     
                     auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(m_peer->connectID);
@@ -326,15 +326,23 @@ void Client::packetReceived(ENetPacket* packet) {
             case UPDATEWEAPON: {
                 if (!m_player.isDied) {
                     auto index = *(Weapons*)bytes;
-
+                    
                     if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
                         return;
                     }
 
                     if (m_player.inventory.at(index) == false) {
+                        for (int i = index; i < WEAPONS_COUNT; i++) {
+                            if (m_player.inventory.at(i)) {
+                                index = (Weapons) i;
+                                break;
+                            }   
+                        }
+                    }
+                    
+                    if (m_player.inventory.at(index) == false) {
                         return;
                     }
-
                     auto weaponSize = HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID);
 
                     m_player.currentWeapon = index;

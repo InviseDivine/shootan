@@ -166,16 +166,23 @@ void Game::updatePlayer() {
         // printf("%f \n", y);
 
         m_player.onGround = prevY != y && prevY > 0.f;
+
+        if (m_player.onGround) {
+            m_coyotTime = 60.f;
+        } else {
+            m_coyotTime -= 10.f;
+        }
+
         // Stop motion on collision
         if (prevX != x) m_player.speed.x = 0.f;
         if (prevY != y) m_player.speed.y = 0.f;
 
         if (m_player.speed.x != 0 || m_player.speed.y != 0) sendMovePacket();
 
-        if (m_player.speed.x > -0.05f && m_player.speed.x < 0.05f) m_player.speed.x = 0;
+        if (m_player.speed.x > -0.01f && m_player.speed.x < 0.01f) m_player.speed.x = 0;
 
         if (!m_player.onLadder) {
-            m_player.speed.x *= 0.91f;
+            m_player.speed.x *= 0.89f;
             m_player.speed.y *= 0.98f;
         } else {
             m_player.speed.x = 0;
@@ -217,6 +224,8 @@ void Game::sendMovePacket() {
 }
 void Game::init(std::string nickname) {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+    SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
+
     InitWindow(1280, 720, "Shootan");
     
     // std::ifstream config("config.txt");
@@ -244,7 +253,6 @@ void Game::init(std::string nickname) {
         
     //     configWrite.close()
     // }
-
     SetTargetFPS(60);
 #ifdef __linux__
     if(getenv("SteamDeck")) ToggleFullscreen();
@@ -420,14 +428,23 @@ void Game::update() {
             boxRight.x = 0;
             boxRight.y = 0;
 
-            if (CheckCollisionPointRec(GetMousePosition(), boxRight) && m_camera.offset.x < width / 2.0f + 600) {
-                zoom.x += 15.f;
+            if (CheckCollisionPointRec(GetMousePosition(), boxRight)) {
+                if (m_camera.offset.x < width / 2.0f + 550) {
+                    zoom.x += 15.f;
+                } else {
+                    zoom.x = 550.f;
+                }
             } 
-
-            if (CheckCollisionPointRec(GetMousePosition(), boxLeft) && m_camera.offset.x > width / 2.0f - 600) {
-                zoom.x -= 15.f;
-            } 
-        }
+            
+            if (CheckCollisionPointRec(GetMousePosition(), boxLeft)) {
+                if (m_camera.offset.x > width / 2.0f - 600) {
+                    zoom.x -= 15.f;
+                } else {
+                    zoom.x = -600.f;
+                }
+            }
+            
+    }
 
         m_camera.offset = Vector2 { width / 2.0f + zoom.x, height / 2.0f + zoom.y};  
     } else {
@@ -505,10 +522,11 @@ void Game::update() {
                     m_player.speed = {0, 0};
                 }
             }
-
+            
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_RIGHT_TRIGGER_1)) {
-                if (m_player.onGround) {
+                if (m_coyotTime > 0.f) {
                     m_player.speed.y = -0.3f;
+                    m_coyotTime = 0.f;
                 } else if (m_player.onLadder) {
                     m_player.onLadder = false;
                     m_player.speed.y = -0.3f;
@@ -565,11 +583,19 @@ void Game::update() {
                 }
             } else {
                 if (leftStickX > 0) {
-                    m_player.speed.x = 0.175f;
+                    if (m_player.speed.x <= 0.250f) {
+                        m_player.speed.x += 0.05f;
+                    } else {
+                        m_player.speed.x = 0.250f;
+                    }
                 }
 
                 if (leftStickX < 0) {
-                    m_player.speed.x = -0.175f;
+                    if (m_player.speed.x >= -0.250f) {
+                        m_player.speed.x -= 0.05f;
+                    } else {
+                        m_player.speed.x = -0.250f;
+                    }
                 }
             }
             
@@ -686,8 +712,9 @@ void Game::update() {
             }
 
             if (IsKeyDown(KEY_SPACE)) {
-                if (m_player.onGround) {
+                if (m_coyotTime > 0.f) {
                     m_player.speed.y = -0.3f;
+                    m_coyotTime = 0.f;
                 } else if (m_player.onLadder) {
                     m_player.onLadder = false;
                     m_player.speed.y = -0.3f;
@@ -712,11 +739,23 @@ void Game::update() {
 
             if (!m_player.onLadder) {
                 if (IsKeyDown(KEY_A)) {
-                    m_player.speed.x = -0.175f;
+                    if (m_player.speed.x > -0.175f) {
+                        m_player.speed.x -= 0.03f;
+                    }
+
+                    if (m_player.speed.x < -0.175f) {
+                        m_player.speed.x = -0.175f;
+                    }
                 }
 
                 if (IsKeyDown(KEY_D)) {
-                    m_player.speed.x = 0.175f;
+                    if (m_player.speed.x < 0.175f) {
+                        m_player.speed.x += 0.03f;
+                    }
+
+                    if (m_player.speed.x > 0.175f) {
+                        m_player.speed.x = 0.175f;
+                    }
                 }
             }
 
@@ -792,6 +831,11 @@ void Game::update() {
 }
 void Game::render() {
     ClearBackground({4, 4, 50, 255});
+    
+    float zoomWidth = (float) GetScreenWidth() / 1280;
+    float zoomHeight = (float) GetScreenHeight() / 720;
+
+    float scale = fmaxf(zoomWidth, zoomHeight);
     
     Vector2 worldMousePos = GetScreenToWorld2D(m_cursorPos, m_camera);
 
@@ -968,7 +1012,8 @@ void Game::render() {
         if (m_player.inventory.at(i)) {
             auto sprite = rm.getWeaponSprite((Weapons) i);
             auto size = rm.getSpriteSize(sprite);
-            Vector2 destSize = {size.x * 4, size.y * 4};
+
+            Vector2 destSize = {size.x * 4 * scale, size.y * 4 * scale};
 
             Rectangle dest = { 0 };
             dest.width = destSize.x;
@@ -1125,7 +1170,7 @@ void Game::updateEditor() {
         bg.x = GetScreenWidth() - bg.width;
         bg.y = 0;
         
-        Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
+        Vector2 max = GetWorldToScreen2D(Vector2 { (float)(WORLD_SIZE + width * 4), WORLD_SIZE }, m_camera);
         Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
 
         Vector2 mousePos = GetMousePosition();

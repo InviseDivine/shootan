@@ -117,6 +117,8 @@ public:
 
     std::string getSetting(std::string key);
 private:
+    float m_coyotTime = 120.f;
+
     // Funny things
     bool m_cleanScene;
     std::shared_ptr<Scene> m_scene;
