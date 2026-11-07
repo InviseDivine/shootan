@@ -43,12 +43,12 @@ MenuScene::MenuScene() : m_play("Play online"), m_editor("Editor mode"), m_hat(S
     image.y -= 48.f;
     registerElement(&m_player);
 
-    m_hat.setBounds(image);
+    setHatBounds(game.getPlayer().hat);
     registerElement(&m_hat);
 
     bounds.y += bounds.height + 10.f;
     m_ip.setBounds(bounds);
-    m_ip.setString("sffnetwork.ru");
+    m_ip.setString(game.getLastServer());
     registerElement(&m_ip);
 
     bounds.y += bounds.height + 10.f;
@@ -64,19 +64,34 @@ void MenuScene::textEdited(Gui::Textbox* textbox, std::string str) {
     auto& game = Game::get();
 
     if (textbox == &m_username) {
-        game.getPlayer().nickname = str;
+        auto endPos = str.find('\0');
+
+        if (endPos != std::string::npos) {
+            game.getPlayer().nickname = str.substr(0, endPos);
+        } else {
+            game.getPlayer().nickname = str;
+        }
+
         return;
     }
 }
-
 void MenuScene::buttonClicked(Gui::Button* button) {
     auto& game = Game::get();
-    
+
     if (button == &m_play) {
         if (!m_ip.getString().empty()) {
+            std::string lastServer = "";
+
+            auto endPos = m_ip.getString().find('\0');
+            if (endPos != std::string::npos) {
+                lastServer = m_ip.getString().substr(0, endPos);
+            } else {
+                lastServer = m_ip.getString();
+            }
+            
             game.exitEditor();
             game.setGameplayCursor(true);
-            game.startMpThread(m_ip.getString());
+            game.startMpThread(lastServer);
             game.clearScene();   
         }
         return;

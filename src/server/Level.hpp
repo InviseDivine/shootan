@@ -1,10 +1,12 @@
 #pragma once
 
-#include <Utils.hpp>
 #include <Types.hpp>
 #include <random>
 #include <vector>
 #include <array>
+#include <algorithm>
+
+#define PACK_INDEX(x, y, width) y * width + x
 
 class Level {
 public:
@@ -13,8 +15,8 @@ public:
     void update();
 
     inline uint8_t GetBlock(int x, int y) {
-        int convX = MAX(0, x);
-        int convY = MAX(0, y);
+        int convX = std::max(0, x);
+        int convY = std::max(0, y);
 
         if ((convX < WORLD_SIZE && convY < WORLD_SIZE)) {
             return m_world.at(PACK_INDEX(convX, convY, WORLD_SIZE));
@@ -29,11 +31,11 @@ public:
     std::vector<Collectible>& getCollectibles() { return m_collectibles; }
     void addBullet(Bullet bullet) { m_bullets.push_back(bullet); }
     
-    void addPoint(RVector2 pos) { m_respawnPoints.push_back(pos); }
+    void addPoint(Vector2 pos) { m_respawnPoints.push_back(pos); }
 
-    std::vector<RVector2>& getSpawnPoins() { return m_respawnPoints; }
+    std::vector<Vector2>& getSpawnPoins() { return m_respawnPoints; }
 
-    RVector2& getRandomSpawn() { 
+    Vector2& getRandomSpawn() { 
         std::uniform_int_distribution<int> distrib(0, m_respawnPoints.size() - 1);
 
         return m_respawnPoints.at(distrib(m_gen)); 
@@ -46,7 +48,7 @@ public:
 
     void restartGame();
 
-    std::vector<RVector2> getBlocksAround(RVector2 pos, int radius);
+    std::vector<Vector2> getBlocksAround(Vector2 pos, int radius);
 
     uint32_t grenadesSize() { return m_grenades.size(); }
     void addGrenade(Grenade grenade) { m_grenades.push_back(grenade); }
@@ -60,7 +62,7 @@ private:
     
     std::vector<Bullet> m_bullets;
     std::vector<Collectible> m_collectibles;
-    std::vector<RVector2> m_respawnPoints;
+    std::vector<Vector2> m_respawnPoints;
     
     std::vector<Grenade> m_grenades;
 

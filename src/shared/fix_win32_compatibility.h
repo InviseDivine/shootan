@@ -33,7 +33,7 @@
 **********************************************************************************************/
 
 #pragma once
-
+#ifdef WIN32
 // move the windows functions to new names
 // note that you can't call these functions or structures from your code, but you should not neeed to
 #define CloseWindow CloseWindowWin32
@@ -47,9 +47,9 @@
 #define DrawTextExW DrawTextExWin32
 #define PlaySoundA PlaySoundAWin32
 // include windows
+#define NOMINMAX
 #define WIN32_LEAN_AND_MEAN 
 #include <windows.h>
-
 // remove all our redfintions so that raylib can define them properly
 #undef CloseWindow
 #undef Rectangle
@@ -64,3 +64,4 @@
 #undef DrawTextExA
 #undef DrawTextExW
 #undef PlaySoundA
+#endif

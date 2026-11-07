@@ -44,7 +44,7 @@ void ResourceManager::drawBlockWorld(Block block, Vector2 pos, Color color) {
     drawBlock(block, {pos.x, pos.y, 1.f, 1.f}, color);
 }
 
-void ResourceManager::drawWeaponPlayer(Weapons weapon, float rotation, Vector2 pos, Color color, bool flip) {
+void ResourceManager::drawWeaponPlayer(WeaponType weapon, float rotation, Vector2 pos, Color color, bool flip) {
     switch (weapon) {
         case GUN: {
             auto texFlip = flip ? -1 : 1;
@@ -74,7 +74,9 @@ void ResourceManager::drawWeaponPlayer(Weapons weapon, float rotation, Vector2 p
 
             DrawTexturePro(m_spritesheet,
                 src,
-                {playerCenter.x, playerCenter.y, size.x, size.y}, {0, halfSize.y}, rotation, color);
+                {playerCenter.x, playerCenter.y, size.x, size.y}, {0, halfSize.y}, rotation, color
+            );
+            
             break;
         }
 
@@ -90,7 +92,8 @@ void ResourceManager::drawWeaponPlayer(Weapons weapon, float rotation, Vector2 p
 
             DrawTexturePro(m_spritesheet,
                 src,
-                {playerCenter.x, playerCenter.y, size.x, size.y}, {0, halfSize.y}, rotation, color);
+                {playerCenter.x, playerCenter.y, size.x, size.y}, {0, halfSize.y}, rotation, color
+            );
 
             break;
         }
@@ -99,7 +102,7 @@ void ResourceManager::drawWeaponPlayer(Weapons weapon, float rotation, Vector2 p
     }
 };
 
-void ResourceManager::drawCollectible(Collectibles index, Vector2 pos, Color color, bool flip) {
+void ResourceManager::drawCollectible(CollectibleType index, Vector2 pos, Color color, bool flip) {
     switch (index) {
         case SHOTGUN_COLLECT: {
             auto src = getSrc(SHOTGUN_SPRITE);
@@ -139,7 +142,7 @@ void ResourceManager::drawCollectible(Collectibles index, Vector2 pos, Color col
     }
 }
 
-const Sprite ResourceManager::getWeaponSprite(Weapons weapon) {
+const Sprite ResourceManager::getWeaponSprite(WeaponType weapon) {
     switch (weapon) {
         case GUN: return PISTOL_SPRITE;
         case SHOTGUN: return SHOTGUN_SPRITE;

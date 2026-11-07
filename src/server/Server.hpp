@@ -1,7 +1,7 @@
 #pragma once
+#include "Client.hpp"
 #include <enet.h>
 #include <unordered_map>
-#include "Client.hpp"
 #include "Level.hpp"
 #include "Timer.hpp"
 

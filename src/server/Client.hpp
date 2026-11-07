@@ -5,7 +5,7 @@
 
 class Client {
 public:
-    Client(ENetPeer* peer) : m_peer(peer), m_loggedIn(false), m_player({""}) {}
+    Client(ENetPeer* peer) : m_peer(peer), m_loggedIn(false) {}
     Client() : Client(nullptr) {}
 
     void packetReceived(ENetPacket* packet);

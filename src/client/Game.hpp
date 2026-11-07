@@ -33,16 +33,16 @@ public:
     void setMyId(uint32_t id) { m_myId = id; }
     uint32_t getMyId() { return m_myId; }
     Player& getPlayer() { return m_player; }
-    void setMyWeapon(Weapons weaponID) { 
+    void setMyWeapon(WeaponType weaponID) { 
         m_player.currentWeapon = weaponID;
     }
-    void addWeapon(Weapons weaponID) { m_player.inventory.at(weaponID) = true; }
+    void addWeapon(WeaponType weaponID) { m_player.inventory.at(weaponID) = true; }
     
     std::unordered_map<uint32_t, Player>& getPlayers() { return m_players; }
     Level& getLevel() { return m_level; }
     
     void setLoaded(bool loaded) { m_loaded = loaded; }
-    void init(std::string nickname);
+    void init();
 
     void sendMovePacket();
     
@@ -126,7 +126,7 @@ private:
     Timer m_timer;
     
     Camera2D m_camera;
-    RVector2 m_cameraPos;
+    Vector2 m_cameraPos;
 
     Level m_level;
 
@@ -144,7 +144,7 @@ private:
     bool m_spawn;
     bool m_testmode;
 
-    Collectibles m_currentColl;
+    CollectibleType m_currentColl;
     bool m_coll;
 
     // Multiplayer
@@ -163,7 +163,7 @@ private:
     // Visual
     std::vector<Message> m_killsNotifications;
     
-    char m_message[255];
+    char m_message[512];
     std::vector<Message> m_messages;
     bool m_chatOpened;
 
@@ -178,4 +178,6 @@ private:
     void render();
 
     void drawScore();
+
+    void detectInput();
 };

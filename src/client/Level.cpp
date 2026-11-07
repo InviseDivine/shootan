@@ -3,7 +3,6 @@
 #include <cmath>
 #include <iostream>
 #include <Game.hpp>
-#include <Utils.hpp>
 #include <fstream>
 #include <ResourceManager.hpp>
 #include <Weapons.hpp>
@@ -24,7 +23,7 @@ void Level::write() {
         world.write(reinterpret_cast<const char*>(&collSize), sizeof(collSize));
         world.write(reinterpret_cast<const char*>(m_collectiblies.data()), m_collectiblies.size() * sizeof(Collectible));
         world.write(reinterpret_cast<const char*>(&spawnSize), sizeof(spawnSize));
-        world.write(reinterpret_cast<const char*>(m_respawnPoints.data()), m_respawnPoints.size() * sizeof(RVector2));
+        world.write(reinterpret_cast<const char*>(m_respawnPoints.data()), m_respawnPoints.size() * sizeof(Vector2));
         
         world.close();
     }
@@ -54,7 +53,7 @@ void Level::read() {
 
         m_respawnPoints.resize(spawnpointSize);
 
-        world.read(reinterpret_cast<char*>(m_respawnPoints.data()), spawnpointSize * sizeof(RVector2));
+        world.read(reinterpret_cast<char*>(m_respawnPoints.data()), spawnpointSize * sizeof(Vector2));
 
         world.close();
 
@@ -154,12 +153,12 @@ void Level::update() {
         
         std::vector<Vector2> blocksAroundArr = getBlocksAround({grenade.pos.x, grenade.pos.y}, stats.burstRadius);
         
-        RRectangle grenadeBox = {grenade.pos.x, grenade.pos.y, 0.5f, 0.5f};
+        Rectangle grenadeBox = {grenade.pos.x, grenade.pos.y, 0.5f, 0.5f};
 
         float x = grenade.velocity.x;
         // Check for X collision
         for (int i = 0; i < blocksAroundArr.size(); i++) {
-            x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, x);
+            x = ClipX(Rectangle {blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, x);
         }
         auto tempX = grenade.pos.x + x;
 
@@ -170,7 +169,7 @@ void Level::update() {
         float y = grenade.velocity.y;
         // Check for Y collision
         for (int i = 0; i < blocksAroundArr.size(); i++) {
-            y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, y);
+            y = ClipY(Rectangle {blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, grenadeBox, y);
         }
         grenade.pos.y += y;
 

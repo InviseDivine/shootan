@@ -9,6 +9,9 @@ public:
 
     void textEdited(Gui::Textbox* textbox, std::string str);
     void buttonClicked(Gui::Button* button);
+
+    // TODO: Implement
+    // void onScreenSizeChange() override; 
 protected:
     Gui::Textbox m_username;
     Gui::Textbox m_ip;

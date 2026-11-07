@@ -11,7 +11,7 @@ int main(int argc, char** argv) {
     std::srand(time(0));
     auto& game = Game::get();
     
-    game.init(std::format("Player-{}", rand() % 1000));
+    game.init();
     
     return 0;
 }

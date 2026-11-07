@@ -1,7 +1,6 @@
 #include "Types.hpp"
 #include <Multiplayer.hpp>
 #include <cstdio>
-#include <Utils.hpp>
 #include <Game.hpp>
 #include <iostream>
 #include <enet.h>
@@ -10,7 +9,9 @@
 #include "ErrorScene.hpp"
 
 void Multiplayer::disconnect() {
-    enet_peer_disconnect(m_peer, 0);
+    if (m_peer) {
+        enet_peer_disconnect(m_peer, 0);
+    }
 }
 
 std::string Multiplayer::getStringReason() {
@@ -35,7 +36,7 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
     auto& game = Game::get();
 
     if (enet_initialize() != 0) {
-        fprintf(stderr, "An error occurred while initializing ENet.\n");
+        std::cout << stderr << "An error occurred while initializing ENet.\n" << std::endl;
         exit(EXIT_FAILURE);
     }
     
@@ -52,7 +53,7 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
     ENetAddress address = {};
 
     if (enet_address_set_host(&address, ip.c_str()) != 0) {
-        fprintf(stderr, "Failed to resolve host %s\n", ip.c_str());
+        std::cout << "Failed to resolve host " << ip << std::endl;
 
         return;
     }    
@@ -62,33 +63,29 @@ void Multiplayer::init(std::string nickname, std::string ip, int port) {
     m_peer = enet_host_connect(m_client, &address, 2, 0);
 
     if (m_peer == NULL) {
-        printf("peer is null");
+        std::cout << "Peer is null, exiting..." << std::endl;
         exit(EXIT_FAILURE);
     }
 
     ENetEvent event;
     if (enet_host_service(m_client, &event, 10000) > 0 && event.type == ENET_EVENT_TYPE_CONNECT) {
-        printf("Connection to %s:%d succeeded \n", ip.c_str(), port);
+        std::cout << "Connection to " <<  ip << ":" << port << " succeeded" << std::endl;
     } else {
-        printf("event.type=%d\n", event.type);
+        std::cout << "Event type = " << event.type << std::endl;
         enet_peer_reset(m_peer);
-        printf("Connection to %s:%d failed \n", ip.c_str(), port);
-
+        std::cout << "Connection to " <<  ip << ":" << port << " failed" << std::endl;
         return;
     }
+
     std::cout << "Connected" << std::endl;
 
     m_connected = true;
 
-    auto loginPacket = new char[HEADER_SIZE + nickname.length() + 2];
-    memset(loginPacket, 0, HEADER_SIZE + nickname.length() + 2);
+    LoginPacket loginPacket {};
+    std::copy(nickname.begin(), nickname.end(), loginPacket.username);
+    loginPacket.hat = game.getPlayer().hat;
 
-    loginPacket[0] = Header::AUTH;
-    loginPacket[1] = game.getPlayer().hat;
-
-    memcpy(loginPacket + 2, nickname.c_str(), nickname.length());
-
-    sendPacket(loginPacket, HEADER_SIZE + nickname.length() + 2, ENET_PACKET_FLAG_RELIABLE);
+    sendPacket((char*)&loginPacket, sizeof(loginPacket), ENET_PACKET_FLAG_RELIABLE);
 
     update();
 }
@@ -99,7 +96,7 @@ void Multiplayer::update() {
     ENetEvent event;
 
     while (m_connected) {
-        while(enet_host_service (m_client, &event, 0) > 0) {
+        while(enet_host_service (m_client, &event, 20) > 0) {
             switch (event.type) {
                 case ENET_EVENT_TYPE_RECEIVE: {
                     handlePacket(event.packet);
@@ -109,15 +106,14 @@ void Multiplayer::update() {
                 }
 
                 case ENET_EVENT_TYPE_DISCONNECT: {
-                    printf("Disconnection succeeded. \n");
+                    std::cout << "Disconnection succeeded." << std::endl;
                     disconnected = true;
-                    // m_reason = *(uint8_t*)(event.data);
                     m_connected = false;
                     break;
                 }
                 case ENET_EVENT_TYPE_DISCONNECT_TIMEOUT: {
                     auto& game = Game::get();
-                    printf("Disconnection due to timeout. \n");
+                    std::cout << "Disconnection due to timeout." << std::endl;
                     disconnected = true;
 
                     m_reason = -2;
@@ -132,8 +128,6 @@ void Multiplayer::update() {
                     break;
             }
         }
-
-        sleepMs(20);
     }
 
     if (!disconnected) {
@@ -144,57 +138,67 @@ void Multiplayer::update() {
 void Multiplayer::handlePacket(ENetPacket* packet) {     
     auto bytes = packet->data;
 
-    auto header = bytes[0];
+    Header header = static_cast<Header>(packet->data[0]);
 
     // printf("Handling new packet with header %d... \n", header);
 
-    bytes++;
-
     auto& game = Game::get();
+
+    // NOTE: Because ENet has big fucking scructure of packet, maybe better if we merge some headers
     switch(header) {    
-        // NOTE: Because ENet has big fucking scructure of packet, maybe better if we merge some of headers
-        case AUTH: {
-            printf("Collecting players \n");
+        // TODO: Replace with struct or smth better :P
+        case Header::ADDALLPLAYERS: {
+            bytes++;
 
             auto num = *bytes;
             bytes++;
             
             for (int i = 0; i < num; i++) {
+                // playerId
                 auto id = *(uint32_t*)bytes;
                 bytes += 4;
 
-                std::cout << id << std::endl;
-
+                // Position
                 auto x = *(float*)bytes;
                 bytes += 4;
                 auto y = *(float*)bytes;
                 bytes += 4;
 
+                // Nickname
                 auto nameLen = *(uint16_t*)bytes;
                 bytes += 2;
-
+                
                 auto name = new char[nameLen + 1];
                 name[nameLen] = 0;
                 memcpy(name, bytes, nameLen);
                 
                 bytes += nameLen;
 
+                // Hp
                 auto hp = *(uint8_t*)bytes;
                 bytes++;
 
-                auto weapon = *(Weapons*)bytes;
+                // Weapon
+                auto weapon = *(WeaponType*)bytes;
                 bytes++;
 
-                auto hat = *(uint8_t*)bytes;
+                // Hat
+                auto hat = *(Hat*)bytes;
                 bytes++;
 
-                auto isDied = *(uint8_t*)bytes;
+                // Is dead
+                auto isDead = *(uint8_t*)bytes;
                 bytes++;
 
-                auto p = Player(name, x, y, hp, weapon);
-                p.hat = (Hat) hat;
-                p.isDied = isDied;
-                std::cout << "Is died " << isDied << std::endl;
+                auto p = Player {
+                    .x = x,
+                    .y = y,
+                    .hp = hp,
+                    .hat = hat,
+                    .nickname = name,
+                };
+
+                p.isDied = isDead;
                  
                 game.addPlayer(id, p);
             }
@@ -202,127 +206,92 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
             break;
         }
 
-        case ADDPLAYER: {
-            auto x = *(float*)bytes;
-            bytes += 4;
+        case Header::ADDPLAYER: {
+            AddPlayerPacket* pack = reinterpret_cast<AddPlayerPacket*>(packet->data);
             
-            auto y = *(float*)bytes;
-            bytes += 4;
+            if (pack->nickname == game.getPlayer().nickname) {
+                game.setMyId(pack->peerId);
 
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            
-            auto hat = *(Hat*)bytes;
-            bytes++;
-            
-            auto nameLen = packet->dataLength - 14;
-            
-            auto name = new char[nameLen];
-            name[nameLen - 1] = 0;
-            memcpy(name, bytes, nameLen);
-
-            printf("My name: %s; Server name: %s \n", game.getPlayer().nickname.c_str(), name);
-            if (name == game.getPlayer().nickname) {
-                printf("its me \n");
-
-                game.setMyId(id);
-                game.getPlayer().x = x;
-                game.getPlayer().y = y;
+                game.getPlayer().x = pack->position.x;
+                game.getPlayer().y = pack->position.y;
             } else {
-                auto p = Player(name, x, y, 100);
-                p.hat = hat;
-                game.addPlayer(id, p);
+                auto p = Player {
+                    .x = pack->position.x,
+                    .y = pack->position.y,
+                    .hp = 100,
+                    .hat = pack->hat,
+                    .nickname = pack->nickname
+                };
+
+                game.addPlayer(pack->peerId, p);
             }
 
             break;
         }
 
-        case MOVE: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto x = *(float*)bytes;
-            bytes += 4;
-            auto y = *(float*)bytes;
-            bytes += 4;
-
+        case Header::MOVE: {
+            MovePacket* pack = reinterpret_cast<MovePacket*>(packet->data);
             
-            if (id != game.getMyId()) {                
-                game.updatePlayerPos(id, x, y);
+            if (pack->id != game.getMyId()) {    
+                game.updatePlayerPos(pack->id, pack->position.x, pack->position.y);
             } else {
-                game.getPlayer().x = x;
-                game.getPlayer().y = y;
+                game.getPlayer().x = pack->position.x;
+                game.getPlayer().y = pack->position.y;
             }
             
             break;
         }
 
-        case REMOVEPLAYER: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
+        case Header::REMOVEPLAYER: {
+            RemovePlayerPacket* pack = reinterpret_cast<RemovePlayerPacket*>(packet->data);
 
-            game.removePlayer(id);
+            game.removePlayer(pack->id);
             
             break;
         }
 
-        case ADDBULLET: {
-            auto index = *(uint32_t*)bytes;
-            bytes += 4;
+        case Header::ADDBULLET: {
+            AddBulletPacket* pack = reinterpret_cast<AddBulletPacket*>(packet->data);
 
-            auto x = *(float*)bytes;
-            bytes += 4;
-            auto y = *(float*)bytes;
-            bytes += 4;
-
-            auto velX = *(float*)bytes;
-            bytes += 4;
-            auto velY = *(float*)bytes;
-            bytes += 4;
-            auto angle = *(float*)bytes;
-            bytes += 4;
-
-            Vector2 bulletSize = {0.3f, 0.2f};
-
-            game.getLevel().addBullet({{x, y}, {velX, velY}, index, angle * RAD2DEG});
+            game.getLevel().addBullet({
+                pack->position, 
+                pack->velocity, 
+                pack->id, 
+                pack->angle * RAD2DEG
+            });
 
             break;
         }
 
-        case REMOVEBULLET: {
-            auto index = *(uint32_t*)bytes;
-            bytes += 4;
-
-            game.getLevel().removeBullet(index);
+        case Header::REMOVEBULLET: {
+            RemoveBulletPacket* pack = reinterpret_cast<RemoveBulletPacket*>(packet->data);
+            game.getLevel().removeBullet(pack->bulletId);
             
             break;  
         }
 
-        case UPDATEWEAPON: {            
-            auto weaponID = *(Weapons*)bytes;
-            bytes++;
-            
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
+        case Header::UPDATEWEAPON: {            
+            UpdateWeaponPacket* pack = reinterpret_cast<UpdateWeaponPacket*>(packet->data);
 
-            if (id == game.getMyId()) {
-                game.setMyWeapon(weaponID);
+            if (pack->id == game.getMyId()) {
+                game.setMyWeapon(pack->index);
             } else {
-                game.getPlayers().at(id).currentWeapon = weaponID;
+                game.getPlayers().at(pack->id).currentWeapon = pack->index;
             }
 
             break;
         }
 
-        case ADDWEAPON: {
-            auto weaponID = *(Weapons*)bytes;
-            bytes++;
-
-            game.addWeapon(weaponID);
+        case Header::ADDWEAPON: {
+            AddWeaponPacket* pack = reinterpret_cast<AddWeaponPacket*>(packet->data);
+            game.addWeapon(pack->type);
             
             break;
         }
 
-        case LEVEL:  {
+        // TODO: Replace with struct or smth better :P
+        case Header::LEVEL:  {
+            bytes++;
             auto size = *(uint32_t*)bytes;
             bytes += 4;
 
@@ -362,167 +331,123 @@ void Multiplayer::handlePacket(ENetPacket* packet) {
 
                 auto type = *(uint8_t*)bytes;
                 bytes++;
-                game.getLevel().addCollectible({{x, y}, (Collectibles) type, 0, y});
+                game.getLevel().addCollectible({{x, y}, (CollectibleType) type, 0, y});
             }
 
             game.setLoaded(true);
             break;
         }
 
-        case UPDATECOLLECTIBLE: {
+        case Header::UPDATECOLLECTIBLE: {
             // NOTE: Maybe we can send just index?
-            auto x = *(float*)bytes;
-            bytes += 4;
-            auto y = *(float*)bytes;
-            bytes += 4;
-
-            auto type = *(uint8_t*)bytes;
-            bytes++;
-            
-            game.getLevel().editCollectible({x, y},(Collectibles)type);
+            UpdateCollectiblePacket* pack = reinterpret_cast<UpdateCollectiblePacket*>(packet->data);
+            game.getLevel().editCollectible(pack->position, pack->type);
             
             break;
         };
 
-        case SETSCORE: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto killedId = *(uint32_t*)bytes;
-            bytes += 4;
-            auto score = *(int*)bytes;
-            bytes += 4;
+        case Header::SETSCORE: {
+            ScorePacket* pack = reinterpret_cast<ScorePacket*>(packet->data);
             
-            if (killedId == game.getMyId()) {
+            if (pack->deadId == game.getMyId()) {
                 game.setMyDied(true);
             } else {
-                game.setDied(killedId, true);
+                game.setDied(pack->deadId, true);
             }
             
-            if (id != game.getMyId()) {
-                game.setScore(id, score);
+            if (pack->killerId != game.getMyId()) {
+                game.setScore(pack->killerId, pack->score);
             } else {
-                game.addNotification(score);
+                game.addNotification(pack->score);
             }
             
             break;
         }
 
-        case SETHP: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto hp = *(int*)bytes;
-            bytes += 4;
-
-            if (id != game.getMyId()) {
-                game.setHp(id, hp);
+        case Header::SETHP: {
+            SetHpPacket* pack = reinterpret_cast<SetHpPacket*>(packet->data);
+            if (pack->id != game.getMyId()) {
+                game.setHp(pack->id, pack->hp);
             } else {
-                game.setMyHp(hp);
+                game.setMyHp(pack->hp);
             }
 
             break;
         }
 
-        case UPDATEANGLE: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto hp = *(float*)bytes;
-            bytes += 4;
+        case Header::UPDATEANGLE: {
+            UpdateAnglePacket* pack = reinterpret_cast<UpdateAnglePacket*>(packet->data);
 
-            if (id != game.getMyId()) {
-                game.setAngle(id, hp);
+            if (pack->id != game.getMyId()) {
+                game.setAngle(pack->id, pack->angle);
             }
 
             break;
         }
 
-        case MESSAGE: {
-            auto messageLength = packet->dataLength - 1;
-
-            auto msg = new char[messageLength + 1];
-            msg[messageLength] = 0;
-            memcpy(msg, bytes, messageLength);
-
-            game.addMessage(msg);
+        case Header::MESSAGE: {
+            MessagePacket* pack = reinterpret_cast<MessagePacket*>(packet->data);
+            game.addMessage(pack->message);
 
             break;
         }
 
-        case DAMAGE: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto damage = *(int*)bytes;
-            bytes += 4;
-
-            game.addNotification(id, damage);
+        case Header::DAMAGE: {
+            DamagePacket* pack = reinterpret_cast<DamagePacket*>(packet->data);
+            game.addNotification(pack->damageReceiver, pack->damage);
 
             break;
         }
 
-        case ROUNDEND: {                
-            auto id = *(uint32_t*)bytes;
-            bytes += 4; 
+        case Header::ROUNDEND: {                
+            RoundEndPacket* pack = reinterpret_cast<RoundEndPacket*>(packet->data);
 
-            if (id == 0) {
+            if (pack->winner == 0) {
                 game.setEnd(false, 0);
             } else {
-                game.setEnd(true, id);
+                game.setEnd(true, pack->winner);
             }
 
             break;
         }
 
-        case THROWGRENADE: {
-            auto index = *(uint32_t*)bytes;
-            bytes += 4;
+        case Header::ADDGRENADE: {
+            AddGrenadePacket* pack = reinterpret_cast<AddGrenadePacket*>(packet->data);
+            Grenade grenade = {
+                .velocity = pack->velocity,
+                .pos = pack->position,
+                .id = pack->id,
+            };
 
-            auto x = *(float*)bytes;
-            bytes += 4;
-            auto y = *(float*)bytes;
-            bytes += 4;
-
-            auto velX = *(float*)bytes;
-            bytes += 4;
-            auto velY = *(float*)bytes;
-            bytes += 4;
-
-            Vector2 bulletSize = {0.3f, 0.2f};
-            Grenade grenade = {{velX, velY}, {x, y}};
-            grenade.id = index;
             game.getLevel().addGrenade(grenade);
         
             break;
         }
 
-        case ADDGRENADE: {
-            auto id = *(Grenades*)bytes;
-            game.getPlayer().grenade = id;
+        case Header::ADDGRENADEINVENTORY: {
+            AddGrenadeInventoryPacket* pack = reinterpret_cast<AddGrenadeInventoryPacket*>(packet->data);
+            game.getPlayer().grenade = pack->type;
 
             break;
         }
 
-        case REMOVEGRENADE: {
-            auto id = *(uint32_t*)bytes;
-
-            game.getLevel().removeGrenade(id);
+        case Header::REMOVEGRENADE: {
+            RemoveGrenadePacket* pack = reinterpret_cast<RemoveGrenadePacket*>(packet->data);
+            game.getLevel().removeGrenade(pack->grenadeId);
             
             break;
         }
 
-        case REVIVE: {
-            auto id = *(uint32_t*)bytes;
-            bytes += 4;
-            auto x = *(float*)bytes;
-            bytes += 4;
-            auto y = *(float*)bytes;
-            bytes += 4;
+        case Header::REVIVE: {
+            RevivePacket* pack = reinterpret_cast<RevivePacket*>(packet->data);
 
-            if (id != game.getMyId()) {      
-                game.setHp(id, 100);   
-                game.setDied(id, false);       
-                game.updatePlayerPos(id, x, y);
+            if (pack->id != game.getMyId()) {      
+                game.setHp(pack->id, 100);   
+                game.setDied(pack->id, false);       
+                game.updatePlayerPos(pack->id, pack->position.x, pack->position.y);
             } else {
-                game.getPlayer().x = x;
-                game.getPlayer().y = y;
+                game.getPlayer().x = pack->position.x;
+                game.getPlayer().y = pack->position.y;
                 game.getPlayer().hp = 100;
                 game.setMyDied(false);
             }

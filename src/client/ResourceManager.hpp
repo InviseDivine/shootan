@@ -21,8 +21,8 @@ public:
     
     void drawSpriteFromSheet(Sprite index, Rectangle dest, Vector2 origin = {0, 0}, float rotation = 0, Color color = WHITE, bool flip = false);
 
-    void drawWeaponPlayer(Weapons weapon, float rotation, Vector2 pos, Color color = WHITE, bool flip = false);
-    void drawCollectible(Collectibles index, Vector2 pos, Color color = WHITE, bool flip = false);
+    void drawWeaponPlayer(WeaponType weapon, float rotation, Vector2 pos, Color color = WHITE, bool flip = false);
+    void drawCollectible(CollectibleType index, Vector2 pos, Color color = WHITE, bool flip = false);
 
     void drawBlockWorld(Block block, Vector2 pos, Color color = WHITE);
     void drawBlock(Block block, Rectangle dest, Color color = WHITE);
@@ -31,7 +31,7 @@ public:
 
     const Vector2 getSpriteSize(Sprite index);
 
-    const Sprite getWeaponSprite(Weapons weapon);
+    const Sprite getWeaponSprite(WeaponType weapon);
 
     const Sprite getHatSprite(Hat hat);
 

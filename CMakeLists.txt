@@ -1,5 +1,9 @@
 cmake_minimum_required(VERSION 3.10)
-project(shootan)
+project(shootan 
+    DESCRIPTION "Pixel shooter."
+    HOMEPAGE_URL "https://github.com/InviseDivine/shootan"
+    LANGUAGES CXX
+)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
@@ -18,18 +22,15 @@ CPMAddPackage("gh:zpl-c/enet#v2.6.5")
 CPMAddPackage("gh:madler/zlib#v1.3.2")
 CPMAddPackage("gh:raysan5/raygui#5.0")
 
+file(GLOB Shared
+    ${CMAKE_SOURCE_DIR}/src/shared/*.cpp
+)
+
+# Client 
 file(GLOB Client
     ${CMAKE_SOURCE_DIR}/src/client/*.cpp
     ${CMAKE_SOURCE_DIR}/src/client/ui/*.cpp
     ${CMAKE_SOURCE_DIR}/src/client/ui/elements/*.cpp
-)
-
-file(GLOB Server
-    ${CMAKE_SOURCE_DIR}/src/server/*.cpp
-)
-
-file(GLOB Shared
-    ${CMAKE_SOURCE_DIR}/src/shared/*.cpp
 )
 
 if(WIN32)
@@ -38,9 +39,8 @@ else()
     add_executable(${PROJECT_NAME} ${Client} ${Shared})
 endif()
 
-add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
-
-target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic)
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic ws2_32)
+target_compile_definitions(${PROJECT_NAME} PRIVATE SHOOTAN_CLIENT)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR}/src/client
     ${CMAKE_SOURCE_DIR}/src/client/ui
@@ -48,7 +48,15 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     ${raygui_SOURCE_DIR}/src
 )
 
+# Server
+file(GLOB Server
+    ${CMAKE_SOURCE_DIR}/src/server/*.cpp
+)
+
+add_executable(${PROJECT_NAME}-server ${Server} ${Shared})
+
 target_link_libraries(${PROJECT_NAME}-server PUBLIC enet_static zlibstatic)
+target_compile_definitions(${PROJECT_NAME}-server PRIVATE SHOOTAN_SERVER)
 target_include_directories(${PROJECT_NAME}-server PUBLIC
     ${CMAKE_SOURCE_DIR}/src/server
     ${CMAKE_SOURCE_DIR}/src/shared

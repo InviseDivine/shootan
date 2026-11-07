@@ -30,7 +30,7 @@ public:
 
     virtual void update() {}
     virtual void render();
-
+    virtual void onScreenSizeChange() {};
     virtual void textEdited(Gui::Textbox* textbox, std::string str) {}
     virtual void buttonClicked(Gui::Button* button) {}
 };

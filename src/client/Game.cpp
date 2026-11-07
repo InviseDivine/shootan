@@ -2,7 +2,6 @@
 #include "Multiplayer.hpp"
 #include <Game.hpp>
 #include <cmath>
-#include <Utils.hpp>
 #include <Collisions.hpp>
 #include <raylib.h>
 #include <raymath.h>
@@ -24,7 +23,7 @@ std::string Game::getSetting(std::string key) {
             if (line.starts_with(key)) {
                 auto toFind = key + "=";
 
-                auto value = line.substr(line.find(toFind), line.size() - toFind.size());
+                auto value = line.substr(toFind.size(), line.size() - toFind.size());
 
                 return value;
             }
@@ -38,14 +37,14 @@ void Game::setEnd(bool end, uint32_t id) {
     m_end = end;
     if (id == 0) {
         for (auto& [id, plr] : m_players) {
-            plr.currentWeapon = (Weapons) 0;
+            plr.currentWeapon = (WeaponType) 0;
             plr.hp = 100;
             plr.score = 0;
         }
 
         m_player.hp = 100;
         m_player.score = 0;
-        m_player.currentWeapon = (Weapons) 0;
+        m_player.currentWeapon = (WeaponType) 0;
         m_player.inventory = {true};
         
         m_winner = 0;
@@ -53,7 +52,7 @@ void Game::setEnd(bool end, uint32_t id) {
         m_winner = id;
     }
 }
-// TODO: Sort by score
+
 void Game::drawScore() {
     auto& rm = ResourceManager::get();
 
@@ -66,20 +65,28 @@ void Game::drawScore() {
     Rectangle bg = {x, y, width, height};
 
     DrawRectangleRec(bg, {0, 0, 0, 180});
-    auto count = 0;
-
     DrawText("Score", width - x - 10, y + 10, 40, WHITE);
-    auto txt = TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score);
 
-    DrawText(txt, x + 40, y + 40, 20, WHITE);
+    static std::vector<std::pair<uint32_t, Player*>> players;
+    {
+        players.clear();
+        players.push_back(std::pair(m_myId, &m_player));
 
-    if (m_winner == m_myId) {
-        rm.drawSpriteFromSheet(CROWN_SPRITE, {x + 40 + MeasureText(txt, 20) + 20, y + 40, 20.f, 20.f}, {0, 0}, 0, WHITE);
+        for (auto& [id, plr] : m_players) {
+            players.push_back(std::pair(id, &plr));
+        }
+
+        if (players.size() > 1) {
+            std::sort(players.begin(), players.end(), [](std::pair<uint32_t, Player*> a, std::pair<uint32_t, Player*> b) {
+                return a.second->score > b.second->score;
+            });
+        }
     }
 
-    for (auto& [id, client] : m_players) {
+    auto count = 0;
+    for (auto& [id, client] : players) {
         float yClient = y + 20 * count + 60;
-        auto text = TextFormat("%s - %d", client.nickname.c_str(), client.score);
+        auto text = TextFormat("%s - %d", client->nickname.c_str(), client->score);
 
         DrawText(text, x + 40, yClient, 20, WHITE);
 
@@ -96,7 +103,14 @@ void Game::setMyHp(int hp) {
 void Game::cleanup() {
     m_level = Level();
     auto hat = m_player.hat;
-    m_player = {m_player.nickname, 0, 0, 100, (Weapons) 0, {true}};
+    m_player = Player {
+        .x = 0, 
+        .y = 0, 
+        .hp = 100, 
+        .nickname = m_player.nickname,
+        .currentWeapon = (WeaponType) 0, 
+        .inventory = {true}
+    };
     m_player.hat = hat;
     m_messages.clear();
     m_players.clear();
@@ -143,12 +157,12 @@ void Game::updatePlayer() {
         
         std::vector<Vector2> blocksAroundArr = m_level.getBlocksAround({m_player.x, m_player.y}, 3);
         
-        RRectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
+        Rectangle playerBox = {m_player.x, m_player.y, 1.f, 1.f};
 
         float x = m_player.speed.x;
         // Check for X collision
         for (int i = 0; i < blocksAroundArr.size(); i++) {
-            x = ClipX(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, x);
+            x = ClipX(Rectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, x);
         }
         auto tempX = m_player.x + x;
 
@@ -160,7 +174,7 @@ void Game::updatePlayer() {
         float y = m_player.speed.y;
         // Check for Y collision
         for (int i = 0; i < blocksAroundArr.size(); i++) {
-            y = ClipY(RRectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, y);
+            y = ClipY(Rectangle{blocksAroundArr.at(i).x, blocksAroundArr.at(i).y, 1.0f, 1.0f}, playerBox, y);
         }
         m_player.y += y;
         // printf("%f \n", y);
@@ -209,50 +223,88 @@ void Game::addNotification(int score) {
 
 void Game::sendMovePacket() {
     if (!m_player.isDied) {
-        auto moveSize = HEADER_SIZE + sizeof(float) * 2;
-        auto movePacket = new char[moveSize];
+        MovePacket movePacket {
+            .position = Vector2 {m_player.x, m_player.y}
+        };
+
         auto& mp = Multiplayer::get();
         
-        movePacket[0] = MOVE;
-        *(float*)(movePacket + 1) = m_player.x;
-        *(float*)(movePacket + 5) = m_player.y;
-
-        mp.sendPacket(movePacket, moveSize, true);
-
-        delete [] movePacket;
+        mp.sendPacket((char*)&movePacket, sizeof(movePacket), false);
     }
 }
-void Game::init(std::string nickname) {
+
+void Game::detectInput() {
+    if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
+        m_currentInput = InputType::KEYBOARD;
+    }
+
+    if (IsGamepadAvailable(0)) {
+        float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
+        float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
+
+        float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
+        float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
+
+        float rightTrigger = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
+
+        if (rightTrigger < -0.9f) rightTrigger = -1.0f;
+
+        if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
+        if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
+
+        if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
+        if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
+
+        if (rightTrigger != -1.0f) m_currentInput = InputType::GAMEPAD;
+        if (leftStickX != 0.0f) m_currentInput = InputType::GAMEPAD;
+        if (rightStickX != 0.0f) m_currentInput = InputType::GAMEPAD;
+        if (leftStickY != 0.0f) m_currentInput = InputType::GAMEPAD;
+        if (rightStickY != 0.0f) m_currentInput = InputType::GAMEPAD;
+    }
+}
+
+void Game::init() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     SetConfigFlags(FLAG_WINDOW_ALWAYS_RUN);
 
     InitWindow(1280, 720, "Shootan");
     
-    // std::ifstream config("config.txt");
+    // Parsing settings
+    std::ifstream config("config.txt");
+    if (config.is_open()) {
+        auto server = getSetting("server");
+        if (server != "") {
+            m_lastServer = server;
+        }
 
-    // if (config.is_open()) {
-    //     auto hat = getSetting("hat");
+        auto nickname = getSetting("nickname");
+        if (nickname != "") {
+            m_player.nickname = nickname;
+        }
 
-    //     if (hat != "") {
-    //         m_player.hat = (Hat)std::stoi(hat);
-    //     }
+        auto hat = getSetting("hat");
+        if (hat != "") {
+            m_player.hat = (Hat)std::stoi(hat);
+        }
 
-    //     auto server = getSetting("server");
+        config.close();
+    } else {
+        std::ofstream configWrite("config.txt");
+        auto nickname = std::format("Player-{}", rand() % 1000);
 
-    //     if (hat != "") {
-    //         m_lastServer = (Hat)std::stoi(hat);
-    //     }
-
-    //     config.close();
-    // } else {
-    //     std::ofstream configWrite("config.txt");
+        if (configWrite.is_open()) {
+            configWrite << "server=sffempire.ru" << std::endl;
+            configWrite << "nickname=" << nickname << std::endl;
+            configWrite << "hat=0";
+        }
         
-    //     configWrite << "server=sffnetwork.ru" << std::endl;
-    //     configWrite << "nickname=" << std::format("Player-{}", rand() % 1000) << std::endl;
-    //     configWrite << "hat=0";
-        
-    //     configWrite.close()
-    // }
+        m_player.nickname = nickname;
+        m_player.hat = Hat::NONE_HAT;
+        m_lastServer = "sffempire.ru";
+
+        configWrite.close();
+    }
+
     SetTargetFPS(60);
 #ifdef __linux__
     if(getenv("SteamDeck")) ToggleFullscreen();
@@ -270,48 +322,20 @@ void Game::init(std::string nickname) {
     auto& rm = ResourceManager::get();
     rm.init();
 
-    m_player = {nickname, 1, 61, 100, (Weapons) 0, {true}, {0, 0}, true}; 
-
     m_scene = std::make_shared<MenuScene>();
 
     m_camera = { 0 };
 
-    m_camera.offset = Vector2{ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
+    m_camera.offset = Vector2 { GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
     m_camera.rotation = 0.0f;
     m_camera.zoom = 50.0f;
     m_cameraPos = {64, 120};
 
     while (!WindowShouldClose()) {
-        if (GetKeyPressed() > 0 || IsMouseButtonPressed(MOUSE_LEFT_BUTTON) || IsMouseButtonPressed(MOUSE_RIGHT_BUTTON)) {
-            m_currentInput = 0;
-        }
+        detectInput();
 
-        if (IsGamepadAvailable(0)) {
-            float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
-            float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
-
-            float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
-            float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
-
-            float rightTrigger = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_TRIGGER);
-
-            if (rightTrigger < -0.9f) rightTrigger = -1.0f;
-
-            if (leftStickX > -0.1f && leftStickX < 0.1f) leftStickX = 0.0f;
-            if (leftStickY > -0.1f && leftStickY < 0.1f) leftStickY = 0.0f;
-
-            if (rightStickX > -0.1f && rightStickX < 0.1f) rightStickX = 0.0f;
-            if (rightStickY > -0.1f && rightStickY < 0.1f) rightStickY = 0.0f;
-
-            if (rightTrigger != -1.0f) m_currentInput = 1;
-            if (leftStickX != 0.0f) m_currentInput = 1;
-            if (rightStickX != 0.0f) m_currentInput = 1;
-            if (leftStickY != 0.0f) m_currentInput = 1;
-            if (rightStickY != 0.0f) m_currentInput = 1;
-        }
-
-        // TODO: Move to function
-        if (m_currentInput == 1) {
+        // Move cursor
+        if (m_currentInput == InputType::GAMEPAD) {
             float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
             float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
             float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
@@ -341,7 +365,7 @@ void Game::init(std::string nickname) {
                 if (leftStickY < 0) m_cursorPos.y -= 5;
                 if (leftStickY > 0) m_cursorPos.y += 5;
             }
-        } else if (m_currentInput == 0) {
+        } else if (m_currentInput == InputType::KEYBOARD) {
             m_cursorPos = GetMousePosition();
         }
 
@@ -370,7 +394,7 @@ void Game::init(std::string nickname) {
                 }
             }
 
-            rm.drawSpriteFromSheet(CURSOR_SPRITE, {m_cursorPos.x, m_cursorPos.y, 15.f, 15.f});
+            rm.drawSpriteFromSheet(CURSOR_SPRITE, {m_cursorPos.x - (int)(15.f / 2), m_cursorPos.y - (int)(15.f / 2), 15.f, 15.f});
         EndDrawing();
 
         if (m_cleanScene) {
@@ -378,6 +402,18 @@ void Game::init(std::string nickname) {
             m_cleanScene = false;
         }
     }
+
+    std::ofstream configWrite("config.txt");
+    
+    if (configWrite.is_open()) {
+        configWrite << "server=" << m_lastServer << std::endl;
+        configWrite << "nickname=" << m_player.nickname << std::endl;
+        configWrite << "hat=" << (int)(m_player.hat);
+        
+        configWrite.close();
+    }
+
+    CloseWindow();
 }
 
 // --------------------
@@ -400,8 +436,9 @@ void Game::update() {
     Vector2 worldMousePos =  GetScreenToWorld2D(m_cursorPos, m_camera);
     static Vector2 zoom = { 0 };
 
+    // TODO: Add up and down zoom
     if (m_player.currentWeapon == SNIPER_RIFLE) {
-        if (m_currentInput == 1 && IsGamepadAvailable(0)) {
+        if (m_currentInput == InputType::GAMEPAD && IsGamepadAvailable(0)) {
             float rightStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_X);
             float rightStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_RIGHT_Y);
 
@@ -442,10 +479,8 @@ void Game::update() {
                 } else {
                     zoom.x = -600.f;
                 }
-            }
-            
-    }
-
+            }      
+        }
         m_camera.offset = Vector2 { width / 2.0f + zoom.x, height / 2.0f + zoom.y};  
     } else {
         m_camera.offset = Vector2 { width / 2.0f, height / 2.0f };  
@@ -455,13 +490,9 @@ void Game::update() {
     Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE, WORLD_SIZE }, m_camera);
     Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
 
-    if (max.x < width) { 
-        m_camera.offset.x = width - (max.x - (float)width/2);
-    };
-    if (min.x > 0) {
-        m_camera.offset.x = (float)width/2 - min.x;
-    };
-
+    if (max.x < width) m_camera.offset.x = width - (max.x - (float)width/2);
+    if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
+    
     if (max.y < height) m_camera.offset.y = height - (max.y - (float)height/2);
     if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
 
@@ -483,18 +514,14 @@ void Game::update() {
         }
 
         if (m_player.isDied && IsKeyPressed(KEY_R)) {
-            auto reviveSize = HEADER_SIZE;
-            auto revivePacket = new char[reviveSize];
+            RevivePacket packet {};
             auto& mp = Multiplayer::get();
-            
-            revivePacket[0] = REVIVE;
 
-            mp.sendPacket(revivePacket, reviveSize, true);
-
-            delete [] revivePacket;
+            mp.sendPacket((char*)&packet, sizeof(RevivePacket), true);
         }
 
-        if (IsGamepadAvailable(0) && m_currentInput == 1) { 
+        // TODO: Rewrite
+        if (IsGamepadAvailable(0) && m_currentInput == InputType::GAMEPAD) { 
             float leftStickX = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_X);
             float leftStickY = GetGamepadAxisMovement(0, GAMEPAD_AXIS_LEFT_Y);
 
@@ -533,6 +560,7 @@ void Game::update() {
                 }
             }
 
+            // TODO: Rewrite gun angle
             if (rightTrigger > 0) {
                 auto& rm = ResourceManager::get();
         
@@ -544,18 +572,17 @@ void Game::update() {
 
                 auto& mp = Multiplayer::get();
 
-                auto addBulletPacket = new char[HEADER_SIZE + 4];
-                addBulletPacket[0] = Header::ADDBULLET;
+                // NOTE: Client packet smaller than packet that server send
+                ShootPacket bulletPacket {
+                    .angle = angle
+                };
 
-                *(float*)(addBulletPacket + HEADER_SIZE) = angle;
-
-                mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
+                mp.sendPacket((char*)&bulletPacket, sizeof(bulletPacket), true);
 
                 m_player.reload.at(m_player.currentWeapon) = weapons.at(m_player.currentWeapon).reloadTime;
-
-                delete [] addBulletPacket;
             }
 
+            // TODO: Rewrite
             if (m_player.onLadder) {
             // if (m_player.onLadder && IsKeyDown(KEY_W) && m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER) {
             //     int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
@@ -607,14 +634,11 @@ void Game::update() {
 
                 float angle = atan2f(direction.y, direction.x);
 
-                auto grenadeSize = HEADER_SIZE + sizeof(angle);
-                auto grenadePacket = new char[grenadeSize];
-
-                grenadePacket[0] = Header::THROWGRENADE;
-                *(float*)(grenadePacket + 1) = angle;
+                ThrowGrenadePacket throwPacket {
+                    .angle = angle
+                };
                 
-                mp.sendPacket(grenadePacket, grenadeSize, true);
-                delete [] grenadePacket;
+                mp.sendPacket((char*)&throwPacket, sizeof(throwPacket), true);
 
                 m_player.grenade = GRENADE_NONE;
             }
@@ -623,66 +647,53 @@ void Game::update() {
 
             // Weapons
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_RIGHT)) {
-                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-                updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = GUN;
-                
                 auto& mp = Multiplayer::get();
-                
-                mp.sendPacket(updateWeapon, 2, true);
-                
-                delete [] updateWeapon;
+
+                UpdateWeaponPacket updatePacket {
+                    .index = WeaponType::GUN
+                };
+                mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
             }
 
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_LEFT)) {
-                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-                updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = SHOTGUN;
-                
                 auto& mp = Multiplayer::get();
-                
-                mp.sendPacket(updateWeapon, 2, true);
-                
-                delete [] updateWeapon;
+
+                UpdateWeaponPacket updatePacket {
+                    .index = WeaponType::SHOTGUN
+                };
+                mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
             }
     
             if (IsGamepadButtonPressed(0, GAMEPAD_BUTTON_LEFT_FACE_UP)) {
-                auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-                updateWeapon[0] = UPDATEWEAPON;
-                updateWeapon[1] = SNIPER_RIFLE;
-                
                 auto& mp = Multiplayer::get();
-                
-                mp.sendPacket(updateWeapon, 2, true);
-                
-                delete [] updateWeapon;
+
+                UpdateWeaponPacket updatePacket {
+                    .index = WeaponType::SNIPER_RIFLE
+                };
+                mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
             }
         }
 
-        if (m_currentInput == 0) {
+        if (m_currentInput == InputType::KEYBOARD) {
             if (!m_player.onLadder) {
-                if ((m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ||
-                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER) 
-                && (IsKeyDown(KEY_W) || IsKeyPressed(KEY_S))) {
-                    int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
-                    m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
+                bool ladderInRight = m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER;
+                bool ladderInLeft = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER;
+
+                if ((ladderInRight || ladderInLeft) && (IsKeyDown(KEY_W) || IsKeyPressed(KEY_S))) {
+                    int playerX = ladderInLeft ? std::ceil(m_player.x) : std::floor(m_player.x);
                     m_player.onLadder = true;
-                    m_player.x = std::trunc(playerX);
+                    m_player.x = playerX;
                     m_player.speed = {0, 0};
                 }
             }
 
             for (uint8_t i = 0; i < m_player.inventory.size(); i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
-                    auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-                    updateWeapon[0] = UPDATEWEAPON;
-                    updateWeapon[1] = i;
-                    
                     auto& mp = Multiplayer::get();
-                    
-                    mp.sendPacket(updateWeapon, 2, true);
-                    
-                    delete [] updateWeapon;
+                    UpdateWeaponPacket updatePacket {
+                        .index = (WeaponType) i
+                    };
+                    mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
                 }
             }
 
@@ -690,25 +701,18 @@ void Game::update() {
             // TODO: Rewrite gun angle
             if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {  
                 auto& rm = ResourceManager::get();
-        
-                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
-
-                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
-
-                float angle = atan2f(direction.y, direction.x);
-
                 auto& mp = Multiplayer::get();
 
-                auto addBulletPacket = new char[HEADER_SIZE + 4];
-                addBulletPacket[0] = Header::ADDBULLET;
+                Vector2 gunPos = {m_player.x + 0.5f, m_player.y + 0.5f};
+                Vector2 direction = Vector2Subtract(worldMousePos, gunPos);
+                float angle = atan2f(direction.y, direction.x);
 
-                *(float*)(addBulletPacket + HEADER_SIZE) = angle;
-
-                mp.sendPacket(addBulletPacket, HEADER_SIZE + 4, true);
+                ShootPacket updatePacket {
+                    .angle = angle
+                };
+                mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
 
                 m_player.reload.at(m_player.currentWeapon) = weapons.at(m_player.currentWeapon).reloadTime;
-
-                delete [] addBulletPacket;
             }
 
             if (IsKeyDown(KEY_SPACE)) {
@@ -721,20 +725,14 @@ void Game::update() {
                 }
             }
             
-            if (m_player.onLadder && IsKeyDown(KEY_W) && m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER) {
-                // TODO: Rewrite
-                int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
-                m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
-
+            bool ladderOnTop = m_level.GetBlock(std::trunc(m_player.x), std::ceil(m_player.y - 1)) == LADDER;
+            if (m_player.onLadder && IsKeyDown(KEY_W) && ladderOnTop) {
                 m_player.speed.y = -0.2f;
-                m_player.x = playerX;
             }
-            if (m_player.onLadder && (IsKeyDown(KEY_S)) && m_level.GetBlock(std::trunc(m_player.x), std::floor(m_player.y + 1)) == LADDER) {
-                int playerX = m_level.GetBlock(std::ceil(m_player.x), std::ceil(m_player.y)) == LADDER ? std::ceil(m_player.x) :
-                m_level.GetBlock(std::floor(m_player.x), std::floor(m_player.y)) == LADDER ? std::floor(m_player.x) : 0;
 
+            bool ladderinBottom = m_level.GetBlock(std::trunc(m_player.x), std::floor(m_player.y + 1)) == LADDER;
+            if (m_player.onLadder && IsKeyDown(KEY_S) && ladderinBottom) {
                 m_player.speed.y = 0.2f;
-                m_player.x = playerX;
             }
 
             if (!m_player.onLadder) {
@@ -767,14 +765,10 @@ void Game::update() {
 
                 float angle = atan2f(direction.y, direction.x);
 
-                auto grenadeSize = HEADER_SIZE + sizeof(angle);
-                auto grenadePacket = new char[grenadeSize];
-
-                grenadePacket[0] = Header::THROWGRENADE;
-                *(float*)(grenadePacket + 1) = angle;
-                
-                mp.sendPacket(grenadePacket, grenadeSize, true);
-                delete [] grenadePacket;
+                ThrowGrenadePacket updatePacket {
+                    .angle = angle
+                };
+                mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
 
                 m_player.grenade = GRENADE_NONE;
             }   
@@ -784,37 +778,26 @@ void Game::update() {
 
         if (wheel != 0.f) {
             auto move = (wheel < 0.f) ? -1 : 1;
-
-            auto updateWeapon = new char[HEADER_SIZE + sizeof(uint8_t)];
-            updateWeapon[0] = UPDATEWEAPON;
-            updateWeapon[1] = m_player.currentWeapon + move < 0 ? WEAPONS_COUNT - 1 : m_player.currentWeapon + move;
-            
             auto& mp = Multiplayer::get();
+
+            UpdateWeaponPacket updatePacket {
+                .index = WeaponType (m_player.currentWeapon + move < 0 ? WEAPONS_COUNT - 1 : m_player.currentWeapon + move)
+            };
             
-            mp.sendPacket(updateWeapon, 2, true);
-            
-            delete [] updateWeapon;
+            mp.sendPacket((char*)&updatePacket, sizeof(updatePacket), true);
         }
 
         if (IsKeyPressed(KEY_ESCAPE) && !m_chatOpened) {
             m_paused ^= 1;
         }
     } else {
-        if (m_currentInput == 0) {
+        if (m_currentInput == InputType::KEYBOARD) {
             if (IsKeyPressed(KEY_ENTER)) {
-                std::string msg(m_message);
                 auto& mp = Multiplayer::get();
-
-                auto msgSize = HEADER_SIZE + msg.size();
-                auto msgPacket = new char[msgSize];
-
-                msgPacket[0] = Header::MESSAGE;
-
-                memcpy(msgPacket + 1, msg.data(), msg.length());
-
-                mp.sendPacket(msgPacket, msgSize, true);
-
-                delete [] msgPacket;
+                MessagePacket msgPacket {};
+                memcpy(msgPacket.message, m_message, 512);
+                
+                mp.sendPacket((char*)&msgPacket, sizeof(msgPacket), true);
 
                 m_chatOpened ^= 1;
 
@@ -842,24 +825,19 @@ void Game::render() {
     Vector2 origin = GetScreenToWorld2D({45.f, 45.f}, m_camera);
 
     Vector2 direction = Vector2Subtract(worldMousePos, {m_player.x + 0.5f, m_player.y + 0.5f});
-    // std::cout << direction.x << " " << direction.y << std::endl;
 
     float anglePrev = 0;
     float angle = atan2f(direction.y, direction.x) * RAD2DEG;
     
     if (anglePrev != angle && !m_paused) {
         anglePrev = angle;
-
-        auto angleSize = HEADER_SIZE + sizeof(angle);
-        auto anglePacket = new char[angleSize];
-        auto& mp = Multiplayer::get();
         
-        anglePacket[0] = UPDATEANGLE;
-        *(float*)(anglePacket + HEADER_SIZE) = angle;
+        auto& mp = Multiplayer::get();
+        UpdateAnglePacket anglePacket {
+            .angle = angle
+        };
 
-        mp.sendPacket(anglePacket, angleSize, true);
-
-        delete [] anglePacket;
+        mp.sendPacket((char*)&anglePacket, sizeof(anglePacket), true);
     }
 
     int flip = !(angle >= -90 && angle < 90) ? 1 : 0;
@@ -869,7 +847,7 @@ void Game::render() {
     BeginMode2D(m_camera);
         m_level.render();
 
-        // Players
+        // Drawing players
         for (auto& [_, client] : m_players) {  
             if (!client.isDied) {
                 auto fontSize = 0.5f;
@@ -888,17 +866,27 @@ void Game::render() {
                     auto& hatPos = rm.getHatPos(client.hat);
                     auto& hatSize = rm.getSpriteSize(rm.getHatSprite(client.hat));
                         
-                    rm.drawSpriteFromSheet(rm.getHatSprite(client.hat), {client.x + hatPos.x / 8, client.y + hatPos.y / 8, hatSize.x / 8.f, hatSize.y / 8.f},
-                    {0, 0}, 0, WHITE, flipClient);
+                    rm.drawSpriteFromSheet(
+                        rm.getHatSprite(client.hat), 
+                        {client.x + hatPos.x / 8, 
+                        client.y + hatPos.y / 8, 
+                        hatSize.x / 8.f, 
+                        hatSize.y / 8.f},
+                        {0, 0}, 
+                        0, 
+                        WHITE, 
+                        flipClient
+                    );
                 }
 
-                rm.drawWeaponPlayer((Weapons)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
+                rm.drawWeaponPlayer((WeaponType)client.currentWeapon, client.angle, {client.x, client.y}, WHITE, flipClient);
                 
                 DrawTextPro(GetFontDefault(), 
-                nickname, 
-                {client.x - (MeasureTextEx(GetFontDefault(), nickname, fontSize, spacing).x / 4),
+                    nickname, 
+                    {client.x - (MeasureTextEx(GetFontDefault(), nickname, fontSize, spacing).x / 4),
                     client.y - 0.55f},
-                {0, 0}, 0, fontSize, spacing, WHITE);
+                    {0, 0}, 0, fontSize, spacing, WHITE
+                );
 
                 DrawTextPro(GetFontDefault(), 
                 hp, 
@@ -909,7 +897,6 @@ void Game::render() {
         }
         
         // Current player
-
         if (!m_player.isDied) {
             rm.drawSpriteFromSheet(PLAYER_SPRITE, {m_player.x, m_player.y, 1.f, 1.f}, {0, 0}, 0, WHITE, flip);
 
@@ -921,7 +908,7 @@ void Game::render() {
                 {0, 0}, 0, WHITE, flip);
             }
 
-            rm.drawWeaponPlayer((Weapons)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
+            rm.drawWeaponPlayer((WeaponType)m_player.currentWeapon, angle, {m_player.x, m_player.y}, WHITE, flip);
         }
 
     EndMode2D();
@@ -935,7 +922,8 @@ void Game::render() {
     if (m_player.reload.at(m_player.currentWeapon) > 0 && !m_player.isDied) {
         DrawText("Reloading...", 0, 80, 40, WHITE);
     }
-    
+
+    // HP Bar
     Rectangle hpBarBg = { 0 };
     hpBarBg.width = 4 * 100;
     hpBarBg.height = 25;
@@ -957,6 +945,8 @@ void Game::render() {
     auto hpText = TextFormat("HP: %d", m_player.hp);
     
     DrawText(hpText, (hpBarBg.width - MeasureText(hpText, 20)) / 2 + hpBarBg.x, 4, 20, WHITE);
+
+    // Chat bar
     Rectangle chatBar = { 0 };
 
     chatBar.width = GetScreenWidth();   
@@ -972,7 +962,7 @@ void Game::render() {
         GuiTextBox(chatBar, m_message, 255, true);
     }
 
-    // It should before GuiTextBox
+    // It should be before GuiTextBox
     if (IsKeyPressed(KEY_T) && !m_chatOpened) {
         m_chatOpened ^= 1;
     }
@@ -993,8 +983,8 @@ void Game::render() {
         }
     }
 
+    // Drawing equipement
     float weaponY = GetScreenHeight();
-
     if (m_player.grenade != GRENADE_NONE) {
         auto size = rm.getSpriteSize(GRENADE_SPRITE);
         Vector2 destSize = {size.x * 4, size.y * 4};
@@ -1010,7 +1000,7 @@ void Game::render() {
 
     for (int i = 0; i < WEAPONS_COUNT; i++) {
         if (m_player.inventory.at(i)) {
-            auto sprite = rm.getWeaponSprite((Weapons) i);
+            auto sprite = rm.getWeaponSprite((WeaponType) i);
             auto size = rm.getSpriteSize(sprite);
 
             Vector2 destSize = {size.x * 4 * scale, size.y * 4 * scale};
@@ -1029,6 +1019,7 @@ void Game::render() {
         }
     }
 
+    // Kill notifications
     for (int i = 0; i < m_killsNotifications.size(); i++) {
         auto& notf = m_killsNotifications.at(i);
 
@@ -1069,6 +1060,7 @@ void Game::render() {
         drawScore();
     }
     
+    // Death screen
     if (m_player.isDied && !m_paused) {
         DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
 
@@ -1077,6 +1069,7 @@ void Game::render() {
         DrawText(text, (GetScreenWidth() - MeasureText(text, 30)) / 2, (GetScreenHeight() - 30) / 2, 30, WHITE);
     }
 
+    // Pause screen
     if (m_paused) {
         float buttonWidth = 200;
         float buttonHeight = 25;
@@ -1106,6 +1099,7 @@ void Game::render() {
     }
 }
 
+// TODO: Separete code and game scene
 // --------------------
 //       Editor
 // --------------------
@@ -1187,7 +1181,7 @@ void Game::updateEditor() {
         if (m_coll) {
             for (int i = 0; i < COLLECTIBLIES_COUNT; i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
-                    m_currentColl = (Collectibles) i; 
+                    m_currentColl = (CollectibleType) i; 
                 }
             }
         } else {
@@ -1230,7 +1224,7 @@ void Game::updateEditor() {
             if (m_spawn) {
                 m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
             } else if (m_coll) {
-                m_level.addCollectible({{worldMousei.x, worldMousei.y}, (Collectibles)(m_currentColl + 1)});
+                m_level.addCollectible({{worldMousei.x, worldMousei.y}, (CollectibleType)(m_currentColl + 1)});
             } else if (IsKeyDown(KEY_Q)) {
                 m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
             } else {

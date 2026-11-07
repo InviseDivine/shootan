@@ -10,32 +10,28 @@
 #define TICKS 60
 #define PLAYER_SIZE 1.f
 
-struct RVector2 {
+#include <fix_win32_compatibility.h>
+#if defined (SHOOTAN_CLIENT)
+#include <raylib.h>
+#else
+typedef struct Vector2 {
     float x;
     float y;
+} Vector2;
 
-    RVector2& operator=(const RVector2& other) {
-        if (this != &other) {
-            x = other.x;
-            y = other.y;
-        }
-        return *this;
-    }
-};
-
-struct RRectangle {
-    float x;
+typedef struct Rectangle {
+    float x; 
     float y;
     float width;
     float height;
-};
+} Rectangle;
+#endif
 
 enum Header : uint8_t {
     AUTH = 0,
     ADDPLAYER,
     MOVE,
     REMOVEPLAYER,
-    LOADWORLD,
     ADDBULLET,
     REMOVEBULLET,
     SETHP,
@@ -51,7 +47,10 @@ enum Header : uint8_t {
     THROWGRENADE,
     ADDGRENADE,
     REMOVEGRENADE,
-    REVIVE
+    REVIVE,
+    ADDALLPLAYERS,
+    SHOOT,
+    ADDGRENADEINVENTORY,
 };
 
 struct Weapon {
@@ -78,20 +77,20 @@ enum Block : uint8_t {
     BLOCKS_COUNT
 };
 
-enum Grenades : uint8_t {
+enum GrenadeType : uint8_t {
     GRENADE_NONE = 0,
-    COMMON,
+    GRENADE_COMMON,
 
     GRENADES_COUNT
 };
 
 
 struct Grenade {    
-    RVector2 velocity;
-    RVector2 pos;
+    Vector2 velocity;
+    Vector2 pos;
     
-    Grenades grenadeId;
     uint32_t id;
+    GrenadeType grenadeId;
     uint32_t owner;
     
     float lifeTime;
@@ -104,7 +103,7 @@ struct GrenadeStats {
     float lifeTime;
 };
 
-enum Weapons : uint8_t {
+enum WeaponType : uint8_t {
     GUN = 0,
     SHOTGUN,
     SNIPER_RIFLE,
@@ -112,7 +111,7 @@ enum Weapons : uint8_t {
     WEAPONS_COUNT
 };
 
-enum Collectibles : uint8_t {
+enum CollectibleType : uint8_t {
     NONE = 0,
     SHOTGUN_COLLECT,
     SNIPER_COLLECT,
@@ -126,12 +125,12 @@ struct Message {
     std::string text;
     float lifeTime;
     unsigned char alpha;
-    RVector2 pos;
+    Vector2 pos;
 };
 
 struct Collectible {
-    RVector2 pos;
-    Collectibles type;
+    Vector2 pos;
+    CollectibleType type;
 
     float respawnTime;
 
@@ -171,37 +170,44 @@ enum DisconnectReason {
     NICKNAME_TOO_LONG,
 };
 
+enum InputType {
+    KEYBOARD = 0,
+    GAMEPAD,
+    TOUCH
+};
+
 struct Player {
-    std::string nickname;
+    // TODO: Replace with Vector2
+    float x, y = 0.f;
+    int hp = 100;
+
+    Hat hat = Hat::NONE_HAT;
+
+    std::string nickname = "";
+
+    WeaponType currentWeapon = WeaponType::GUN;
+
+    std::array<bool, WEAPONS_COUNT> inventory = { true };
+
+    Vector2 speed = { 0 };
+
+    bool onGround = true;
+
+    int score = 0;  
+
+    std::array<float, WEAPONS_COUNT> reload = { 0 };
+
+    float angle = 0.f;
     
-    float x, y;
-    int hp;
+    GrenadeType grenade = GrenadeType::GRENADE_NONE;
 
-    Weapons currentWeapon;
-
-    std::array<bool, WEAPONS_COUNT> inventory;
-
-    RVector2 speed;
-
-    bool onGround;
-
-    int score;  
-
-    std::array<float, WEAPONS_COUNT> reload;
-
-    float angle;
-    
-    Hat hat;
-
-    Grenades grenade;
-
-    bool onLadder;
-    bool isDied;
+    bool onLadder = false;
+    bool isDied = false;
 };
 
 struct Bullet {
-    RVector2 pos;
-    RVector2 velocity;
+    Vector2 pos;
+    Vector2 velocity;
 
     uint32_t id;
     
@@ -213,3 +219,158 @@ struct Bullet {
 
     uint8_t weaponId;
 };
+
+struct Packet {};
+
+#pragma pack(push, 1)
+
+struct LoginPacket : Packet {
+    Header header = Header::AUTH;
+    char username[32] = { 0 };
+    Hat hat = Hat::NONE_HAT;
+};
+
+struct MovePacket : Packet {
+    Header header = Header::MOVE;
+    uint32_t id = 0;
+    Vector2 position = { 0 };
+};
+
+struct AddBulletPacket : Packet {
+    Header header = Header::ADDBULLET;
+
+    float angle = 0.f;
+    uint32_t id = 0;
+
+    Vector2 position = { 0 };
+    Vector2 velocity = { 0 };
+};
+
+struct UpdateWeaponPacket : Packet {
+    Header header = Header::UPDATEWEAPON;
+    uint32_t id = 0;
+    WeaponType index = WeaponType::GUN;
+};
+
+struct UpdateAnglePacket : Packet {
+    Header header = Header::UPDATEANGLE;
+    uint32_t id = 0;
+    float angle = 0.f;
+};
+
+// TODO: Collectibles
+struct LevelPacket : Packet {
+    Header header = Header::LEVEL;
+    
+    uint32_t levelSize = 0;
+    uint8_t world[WORLD_SIZE * WORLD_SIZE] = { 0 };
+
+    uint32_t backgroundSize = 0;
+    uint8_t background[WORLD_SIZE * WORLD_SIZE] = { 0 };
+
+    uint32_t collectiblesNumber = 0;
+};
+
+struct AddPlayerPacket : Packet {
+    Header header = Header::ADDPLAYER;
+    uint32_t peerId = 0;
+    Vector2 position = { 0 };
+    Hat hat = Hat::NONE_HAT;
+    char nickname[32] = { 0 };
+};
+
+// TODO: Implement all players
+struct AddAllPlayersPacket : Packet {
+    Header header = Header::ADDALLPLAYERS;
+
+};
+
+// NOTE: Idk maybe we can merge packets with same vars
+struct AddGrenadePacket : Packet {
+    Header header = Header::ADDGRENADE;
+
+    float angle = 0.f;
+    uint32_t id = 0;
+
+    Vector2 position = { 0 };
+    Vector2 velocity = { 0 };
+};
+
+struct RevivePacket {
+    Header header = Header::REVIVE;
+    uint32_t id = 0;
+    Vector2 position = { 0 };
+};
+
+struct SetHpPacket {
+    Header header = Header::SETHP;
+    uint32_t id = 0;
+    int hp = 0;
+};
+
+struct RemoveBulletPacket {
+    Header header = Header::REMOVEBULLET;
+    uint32_t bulletId = 0;
+};
+
+struct RoundEndPacket {
+    Header header = Header::ROUNDEND;
+    uint32_t winner = 0;
+};
+
+struct UpdateCollectiblePacket {
+    Header header = Header::UPDATECOLLECTIBLE;
+    Vector2 position = { 0 };
+    CollectibleType type = CollectibleType::NONE;
+};
+
+struct AddWeaponPacket {
+    Header header = Header::ADDWEAPON;
+    WeaponType type = WeaponType::GUN;
+};
+
+struct AddGrenadeInventoryPacket {
+    Header header = Header::ADDGRENADEINVENTORY;
+    GrenadeType type = GrenadeType::GRENADE_NONE;
+};
+
+struct DamagePacket {
+    Header header = Header::DAMAGE;
+    uint32_t damageReceiver = 0;
+    int damage = 0;
+};
+
+struct ScorePacket {
+    Header header = Header::SETSCORE;
+    uint32_t killerId = 0;
+    uint32_t deadId = 0;
+    int score = 0;
+};
+
+struct RemoveGrenadePacket {
+    Header header = Header::REMOVEGRENADE;
+    uint32_t grenadeId = 0;
+};
+
+struct RemovePlayerPacket {
+    Header header = Header::REMOVEPLAYER;
+    uint32_t id = 0;
+};
+
+struct MessagePacket {
+    Header header = Header::MESSAGE;
+    char message[512];
+};
+
+
+struct ShootPacket {
+    Header header = Header::SHOOT;
+    float angle = 0.f;
+};
+
+struct ThrowGrenadePacket {
+    Header header = Header::THROWGRENADE;
+    float angle = 0.f;
+};
+
+#pragma pack(pop) 

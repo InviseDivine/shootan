@@ -13,40 +13,31 @@
 #define RAD2DEG (180.0f/PI)
 #define MAX_NAME_LEN 30
 
-std::array<RVector2, WEAPONS_COUNT> weaponsSize {{
+std::array<Vector2, WEAPONS_COUNT> weaponsSize {{
     {1.2f, 0.72f},  // PISTOL
     {1.44f, 0.48f},  // SHOTGUN
     {1.92f, 0.48f}, // SNIPER_RIFLE
 }};
 
 void sendBullet(Bullet& bullet, float angle) {
-    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8 + 4];
-    addBulletPacket[0] = Header::ADDBULLET;
-    
-    uint32_t size = bullet.id;
-
-    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
-    *(float*)(addBulletPacket + HEADER_SIZE + 4) = bullet.pos.x;
-    *(float*)(addBulletPacket + HEADER_SIZE + 8) = bullet.pos.y;
-    *(float*)(addBulletPacket + HEADER_SIZE + 12) = bullet.velocity.x;
-    *(float*)(addBulletPacket + HEADER_SIZE + 16) = bullet.velocity.y;
-    *(float*)(addBulletPacket + HEADER_SIZE + 20) = angle;
+    AddBulletPacket packet {
+        .angle = angle,
+        .id = bullet.id,
+        .position = bullet.pos,
+        .velocity = bullet.velocity,
+    };
 
     auto& srv = Server::get();
 
-    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8 + 4);
-
-    delete [] addBulletPacket;
+    srv.broadcast((char*)&packet, sizeof(packet));
 }
+
 void Client::packetReceived(ENetPacket* packet) {
-    auto bytes = packet->data;
-    auto header = *(Header*)bytes;
+    Header header = static_cast<Header>(packet->data[0]);
 
     // printf("New packet from %u with header %d \n", m_peer->connectID, header);
 
     auto& srv = Server::get();
-
-    bytes++;
 
     if (!m_loggedIn) {
         if (header != AUTH) {
@@ -54,29 +45,22 @@ void Client::packetReceived(ENetPacket* packet) {
             return;
         }
 
-        auto hat = *(Hat*)bytes;
-        bytes++;
+        LoginPacket* pack = reinterpret_cast<LoginPacket*>(packet->data);
 
         auto& clients = srv.getClients();
-        auto nicknameLen = packet->dataLength - 2;
-
-        if (nicknameLen > MAX_NAME_LEN) {
-            // TODO: Send error to client and disconnect it
-            return;
-        }
         
-        auto nickname = new char[nicknameLen];
+        auto hat = pack->hat;
 
-        memcpy(nickname, bytes, nicknameLen);
+        auto plrNick = pack->username;
 
-        auto contains = std::find_if(clients.begin(), clients.end(), [&nickname](const auto& pair) {
-            return pair.second.m_player.nickname == nickname;
+        auto contains = std::find_if(clients.begin(), clients.end(), [plrNick](const auto& pair) {
+            return pair.second.m_player.nickname == plrNick;
         });
 
         if (contains != clients.end()) {
             return; 
         }
-        
+
         auto& collectibles = srv.getLevel().getCollectibles();
 
         uLongf ogLvlSize = WORLD_SIZE * WORLD_SIZE;
@@ -95,14 +79,16 @@ void Client::packetReceived(ENetPacket* packet) {
         
         compressedBg.resize(compressedBgSize);
         compressedData.resize(compressed);
+
+        // TODO: Replace with struct or smth better :P
         auto lvlSize = 
             HEADER_SIZE +
-            sizeof(uint32_t) + 
+            sizeof(compressed) + 
             compressed + 
-            sizeof(uint32_t) + 
+            sizeof(compressedBgSize) + 
             compressedBgSize +
             sizeof(uint32_t) +
-            collectibles.size() * (sizeof(float) * 2 + sizeof(Collectibles));
+            collectibles.size() * (sizeof(float) * 2 + sizeof(CollectibleType));
 
         auto levelPacket = new char[lvlSize];
         
@@ -130,52 +116,43 @@ void Client::packetReceived(ENetPacket* packet) {
             *(float*)(levelPacket + i) = coll.pos.y;
             i += 4;
 
-            *(Collectibles*)(levelPacket + i) = coll.type;
+            *(CollectibleType*)(levelPacket + i) = coll.type;
             i++;
         }
 
         sendPacketTo(levelPacket, lvlSize);
         
-        auto newPlayerSize = HEADER_SIZE + nicknameLen + sizeof(float) * 2 + sizeof(uint32_t) + sizeof(Hat);
-        auto newPlayerPacket = new char[newPlayerSize];
-
-        newPlayerPacket[0] = ADDPLAYER;
-
-        auto newPlrIndex = 1;
-
         auto& pos = srv.getLevel().getRandomSpawn();
 
-        // x and y
-        *(float*)(newPlayerPacket + newPlrIndex) = pos.x;
-        newPlrIndex += 4;
-        *(float*)(newPlayerPacket + newPlrIndex) = pos.y;
-        newPlrIndex += 4;
+        m_player = Player {
+            .x = pos.x, 
+            .y = pos.y, 
+            .hp = 100, 
+            .hat = hat
+        };
         
-        // peerID
-        *(uint32_t*)(newPlayerPacket + newPlrIndex) = m_peer->connectID;
-        newPlrIndex += 4;
+        m_player.nickname = pack->username;
 
-        // Hat
-        *(Hat*)(newPlayerPacket + newPlrIndex) = hat;
-        newPlrIndex++;
+        AddPlayerPacket newPlayerPacket {
+            .peerId = m_peer->connectID,
+            .position = pos,
+            .hat = hat,
+        };
+        
+        std::copy(m_player.nickname.begin(), m_player.nickname.end(), newPlayerPacket.nickname);
+        
+        srv.broadcast((char*)&newPlayerPacket, sizeof(newPlayerPacket), true);
 
-        // nickname
-        memcpy(newPlayerPacket + (newPlayerSize - nicknameLen), bytes, nicknameLen);
-
-        srv.broadcast(newPlayerPacket, newPlayerSize);
-
+        // TODO: Replace with struct or smth better :P
         auto clientsCount = clients.size();
 
         auto playerPacketSize = HEADER_SIZE + 
         sizeof(clientsCount) + (sizeof(float) * 2 + sizeof(uint16_t) + MAX_NAME_LEN + sizeof(uint8_t) * 4 + sizeof(uint32_t)) * (clientsCount - 1);
         auto playersPacket = new char[playerPacketSize];
 
-        playersPacket[0] = Header::AUTH;
+        playersPacket[0] = Header::ADDALLPLAYERS;
         playersPacket[1] = (uint8_t)(clients.size() - 1);
         auto packetIndex = 2;
-
-        m_player = {nickname, pos.x, pos.y, 100, (Weapons) 0, {true}};
-        m_player.hat = hat;
 
         for (auto& [id, client] : clients) {
             if (id != m_peer->connectID) {
@@ -207,22 +184,20 @@ void Client::packetReceived(ENetPacket* packet) {
 
         m_loggedIn = true;
 
-        srv.sendServerMessage(std::format("{} joined the server", nickname));
+        srv.sendServerMessage(std::format("{} joined the server", pack->username));
 
         delete[] playersPacket;
-        delete[] newPlayerPacket;
         delete[] levelPacket;
-    } else { 
+    } else {
+        // Processing packets
         switch (header) {
-            case MOVE: {
+            case Header::MOVE: {
                 if (!m_player.isDied) {
                     bool shouldExclude = true;
 
-                    auto x = *(float*)bytes;
-                    bytes += 4;
-
-                    auto y = *(float*)bytes;
-                    bytes += 4;
+                    MovePacket* pack = reinterpret_cast<MovePacket*>(packet->data);
+                    auto x = pack->position.x;
+                    auto y = pack->position.y;
                     
                     if (x < 0 || x >= WORLD_SIZE || y >= WORLD_SIZE || y < 0) {
                         auto& lvl = srv.getLevel();
@@ -237,45 +212,41 @@ void Client::packetReceived(ENetPacket* packet) {
                         m_player.y = y;
                     }
                     
-                    auto moveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(m_peer->connectID);
-                    auto movePlrPacket = new char[moveSize];
-                    
-                    movePlrPacket[0] = MOVE;
-                    
-                    *(uint32_t*)(movePlrPacket + 1) = m_peer->connectID;
-                    *(float*)(movePlrPacket + 5) = m_player.x;
-                    *(float*)(movePlrPacket + 9) = m_player.y;
+                    MovePacket movePacket {
+                        .id = this->getID(),
+                        .position = Vector2 { m_player.x, m_player.y }
+                    };
 
                     if (shouldExclude) {
-                        srv.broadcastWithExclude(movePlrPacket, moveSize, m_peer->connectID);
+                        srv.broadcastWithExclude((char*)&movePacket, sizeof(movePacket), m_peer->connectID);
                     } else {
-                        srv.broadcast(movePlrPacket, moveSize);
+                        srv.broadcast((char*)&movePacket, sizeof(movePacket), false);
                     }
-
-                    delete [] movePlrPacket;
-
-                    break;
                 }
+
+                break;
             }
 
-            case ADDBULLET: {
+            case Header::SHOOT: {
                 if (!m_player.isDied) {
                     if (m_player.reload.at(m_player.currentWeapon) <= 0) {
-                        auto angle = *(float*)bytes;
+                        ShootPacket* pack = reinterpret_cast<ShootPacket*>(packet->data);
+
+                        auto angle = pack->angle;
                         auto& level = srv.getLevel();
-                        RVector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
+
+                        Vector2 gunPos = {weaponsSize.at(m_player.currentWeapon).x, 0};
+
                         float cosA = cosf(angle);
                         float sinA = sinf(angle);
-                        RVector2 gunWorld = {
+
+                        Vector2 gunWorld = {
                             gunPos.x * cosA - gunPos.y * sinA,
                             gunPos.x * sinA + gunPos.y * cosA
                         };
 
-                        // TODO: Check for walls to muzzle
                         Weapon& wpn = weapons.at(m_player.currentWeapon);
                         float angleDeg = angle * RAD2DEG;
-
-                        std::cout << (uint8_t)m_player.currentWeapon << std::endl;
 
                         int flip = !(angleDeg >= -90 && angleDeg < 90) ? -1 : 1;
                         if (m_player.currentWeapon == SHOTGUN) {
@@ -318,15 +289,17 @@ void Client::packetReceived(ENetPacket* packet) {
                             sendBullet(bullet, angle);
                             m_player.reload.at(m_player.currentWeapon) = wpn.reloadTime;
                         }
-                        
-                        break;
                     }
                 }
-            };
-            case UPDATEWEAPON: {
+
+                break;
+            }
+            case Header::UPDATEWEAPON: {
                 if (!m_player.isDied) {
-                    auto index = *(Weapons*)bytes;
-                    
+                    UpdateWeaponPacket* pack = reinterpret_cast<UpdateWeaponPacket*>(packet->data);
+
+                    auto index = pack->index;
+
                     if (index >= m_player.inventory.size() || index >= WEAPONS_COUNT || m_player.currentWeapon == index) {
                         return;
                     }
@@ -334,7 +307,7 @@ void Client::packetReceived(ENetPacket* packet) {
                     if (m_player.inventory.at(index) == false) {
                         for (int i = index; i < WEAPONS_COUNT; i++) {
                             if (m_player.inventory.at(i)) {
-                                index = (Weapons) i;
+                                index = (WeaponType) i;
                                 break;
                             }   
                         }
@@ -346,53 +319,43 @@ void Client::packetReceived(ENetPacket* packet) {
                     auto weaponSize = HEADER_SIZE + sizeof(uint8_t) + sizeof(m_peer->connectID);
 
                     m_player.currentWeapon = index;
-                    auto updateWeapon = new char[weaponSize];
+                    
+                    UpdateWeaponPacket updateWeapon {
+                        .id = getID(),
+                        .index = index,
+                    };
 
-                    updateWeapon[0] = UPDATEWEAPON;
-                    updateWeapon[1] = index;
-                    *(uint32_t*)(updateWeapon + 2) = m_peer->connectID;
-
-                    srv.broadcast(updateWeapon, weaponSize);
-
-                    delete [] updateWeapon;
-
-                    break;
+                    srv.broadcast((char*)&updateWeapon, sizeof(updateWeapon), false);
                 }
+
+                break;
             }
 
-            case UPDATEANGLE: {
-                auto angle = *(float*)bytes;
+            case Header::UPDATEANGLE: {
+                UpdateAnglePacket* pack = reinterpret_cast<UpdateAnglePacket*>(packet->data);
 
-                auto angleSize = HEADER_SIZE + sizeof(m_peer->connectID) + sizeof(angle);
+                UpdateAnglePacket anglePacket {
+                    .id = getID(),
+                    .angle = pack->angle
+                };
                 
-                auto anglePacket = new char[angleSize];
+                srv.broadcast((char*)&anglePacket, sizeof(anglePacket), false);
 
-                anglePacket[0] = UPDATEANGLE;
-                *(uint32_t*)(anglePacket + HEADER_SIZE) = m_peer->connectID;
-                *(float*)(anglePacket + HEADER_SIZE + 4) = angle;
-
-                srv.broadcast(anglePacket, angleSize);
-
-                delete [] anglePacket;
-                
                 break;
             }
             
-            case MESSAGE: {
-                auto messageLength = packet->dataLength - 1;
-
-                auto msg = new char[messageLength + 1];
-                msg[messageLength] = 0;
-                memcpy(msg, bytes, messageLength);
-
-                srv.sendServerMessage(std::format("<{}> {}", m_player.nickname, msg));
+            case Header::MESSAGE: {
+                MessagePacket* pack = reinterpret_cast<MessagePacket*>(packet->data);
+                srv.sendServerMessage(std::format("<{}> {}", m_player.nickname, pack->message));
 
                 break;
             }
 
-            case THROWGRENADE: {
+            case Header::THROWGRENADE: {
                 if (!m_player.isDied && m_player.grenade != GRENADE_NONE) {
-                    auto angle = *(float*)bytes;
+                    ThrowGrenadePacket* pack = reinterpret_cast<ThrowGrenadePacket*>(packet->data);
+                    float angle = pack->angle;
+
                     auto& level = srv.getLevel();
 
                     auto& stats = grenades.at(m_player.grenade - 1);
@@ -412,47 +375,31 @@ void Client::packetReceived(ENetPacket* packet) {
                     level.addGrenade(grenade);
 
                     m_player.grenade = GRENADE_NONE;
-
-                    auto addBulletPacket = new char[HEADER_SIZE + 4 + 8 + 8];
-                    addBulletPacket[0] = Header::THROWGRENADE;
                     
-                    uint32_t size = grenade.id;
-
-                    *(uint32_t*)(addBulletPacket + HEADER_SIZE) = size;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 4) = grenade.pos.x;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 8) = grenade.pos.y;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 12) = grenade.velocity.x;
-                    *(float*)(addBulletPacket + HEADER_SIZE + 16) = grenade.velocity.y;
+                    AddGrenadePacket grenadePacket {
+                        .angle = angle,
+                        .id = grenade.id,
+                        .position = grenade.pos,
+                        .velocity = grenade.velocity
+                    };
 
                     auto& srv = Server::get();
 
-                    srv.broadcast(addBulletPacket, HEADER_SIZE + 4 + 8 + 8);
-
-                    delete [] addBulletPacket;
+                    srv.broadcast((char*)&grenadePacket, sizeof(grenadePacket));
                 }
                 
                 break;
             }
 
-            case REVIVE: {
-                auto reviveSize = HEADER_SIZE + sizeof(float) * 2 + sizeof(getID());
-                auto revivePacket = new char[reviveSize];
-                
-                revivePacket[0] = REVIVE;
-                
+            case Header::REVIVE: {
                 auto& pos = srv.getLevel().getRandomSpawn();
-                
-                m_player.x = pos.x;
-                m_player.y = pos.y;
-                
-                *(uint32_t*)(revivePacket + 1) = m_peer->connectID;
-                *(float*)(revivePacket + 5) = pos.x;
-                *(float*)(revivePacket + 9) = pos.y;
+                RevivePacket revivePacket {
+                    .id = getID(),
+                    .position = pos
+                };
 
-                srv.broadcast(revivePacket, reviveSize);
-                m_player.hp = 100;
-                m_player.isDied = false;
-                delete [] revivePacket;
+                srv.broadcast((char*)&revivePacket, sizeof(revivePacket));
+
                 break;
             }
 

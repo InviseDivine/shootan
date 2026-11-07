@@ -4,7 +4,6 @@
 #include <enet.h>
 #include <fstream>
 #include <iostream>
-#include <Utils.hpp>
 #include <random>
 
 int Server::init() {
@@ -28,27 +27,19 @@ int Server::init() {
         return 1;
     }
 
-    printf("Starting server on port %d...\n", address.port);
-    
+    std::cout << "Starting server on port " << address.port << "..." << std::endl;    
     m_level.read("world.dat");
 
     return update();
 }
 
 void Server::sendServerMessage(std::string msg) {
+    MessagePacket broadcastMessage {};
+
+    std::copy(msg.begin(), msg.end(), broadcastMessage.message);
+            
+    broadcast((char*)&broadcastMessage, sizeof(broadcastMessage));
     std::cout << msg << std::endl;
-    
-    auto msgSize = HEADER_SIZE + msg.size();
-
-    auto msgPacket = new char[msgSize];
-
-    msgPacket[0] = Header::MESSAGE;
-
-    memcpy(msgPacket + 1, msg.data(), msg.length());
-
-    broadcast(msgPacket, msgSize);
-
-    delete [] msgPacket;
 }
 
 void Server::broadcast(char* data, int size, bool reliable) {
@@ -69,7 +60,7 @@ int Server::update() {
         
         ENetEvent event;
 
-        while (enet_host_service(m_server, &event, 0) > 0) {
+        while (enet_host_service(m_server, &event, 20) > 0) {
             auto id = event.peer->connectID;
 
             switch (event.type) {
@@ -86,7 +77,7 @@ int Server::update() {
                 case ENET_EVENT_TYPE_DISCONNECT: {
                     auto disconnectID = (uint32_t)((uintptr_t)event.peer->data);
 
-                    printf("disconnecting id: %u \n", disconnectID);
+                    std::cout << "disconnecting id: " << disconnectID << std::endl;
                     
                     if (m_clients.contains(disconnectID)) {
                         sendServerMessage(std::format("{} disconnected from the server", m_clients.at(disconnectID).m_player.nickname));
@@ -144,11 +135,9 @@ int Server::update() {
                 default: break;
             }
         }
-
-        sleepMs(20);
     }
 
-    printf("Stopping server...");
+    std::cout << "Stopping server..." << std::endl;
 
     enet_host_destroy(m_server);
     enet_deinitialize();
