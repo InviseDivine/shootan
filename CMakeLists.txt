@@ -39,7 +39,7 @@ else()
     add_executable(${PROJECT_NAME} ${Client} ${Shared})
 endif()
 
-target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic ws2_32)
+target_link_libraries(${PROJECT_NAME} PUBLIC raylib enet_static zlibstatic)
 target_compile_definitions(${PROJECT_NAME} PRIVATE SHOOTAN_CLIENT)
 target_include_directories(${PROJECT_NAME} PUBLIC
     ${CMAKE_SOURCE_DIR}/src/client
