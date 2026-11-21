@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <Level.hpp>
 #include <ui/Scene.hpp>
+#include <stack>
+#include <variant>
 
 class Game {
 public:
@@ -138,7 +140,7 @@ private:
     bool m_paused;
 
     // Editor
-    Block m_currentBlock;
+    Block m_currentBlock = Block::GRASS;
     bool m_loaded;
     bool m_editor;
     bool m_spawn;
@@ -148,6 +150,30 @@ private:
     bool m_coll;
 
     bool m_blocks;
+
+    struct StackElement {
+        bool removed;
+        std::variant<Block, CollectibleType> type;
+        Vector2 position;
+        bool background;
+
+        bool operator==(const StackElement&) const = default;
+    };
+
+    std::deque<StackElement> m_stack;
+    
+    void addElement(StackElement el) { 
+        if (m_stack.size() > 0) {
+            if (el != m_stack.front()) {
+                m_stack.emplace_front(el);
+            }
+        } else {
+            m_stack.emplace_front(el);
+        }
+        
+        if (m_stack.size() > 20) m_stack.pop_back();
+    }
+
     // Multiplayer
     uint32_t m_myId;
 

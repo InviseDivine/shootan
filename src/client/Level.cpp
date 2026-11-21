@@ -28,6 +28,15 @@ void Level::write() {
     }
 }
 
+void Level::clearLevel() {
+    m_world.fill(Block::AIR);
+    m_background.fill(Block::AIR);
+    m_collectiblies.clear();
+    m_respawnPoints.clear();
+    m_grenades.clear();
+    m_bullets.clear();
+}
+
 void Level::read() {
     std::ifstream world("world.dat", std::ios::binary);
 

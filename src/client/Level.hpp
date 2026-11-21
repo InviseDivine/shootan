@@ -16,6 +16,8 @@ public:
     void update();
     void render();
 
+    void clearLevel();
+    
     // TODO: move code to .cpp
     inline uint8_t GetBlock(int x, int y) {
         int convX = std::max(0, x);
@@ -61,6 +63,17 @@ public:
             m_world.at(PACK_INDEX(x, y, WORLD_SIZE)) = block; 
         } 
     } 
+    CollectibleType getCollectible(Vector2 pos) {
+        for (int i = 0; i < m_collectiblies.size(); i++) {
+            auto& col = m_collectiblies.at(i);
+
+            if (Vector2Equals(pos, col.pos)) {
+                return col.type;
+            }
+        }
+
+        return CollectibleType::NONE;
+    }
 
     void addCollectible(Collectible coll) { coll.newY = coll.pos.y; m_collectiblies.push_back(coll); }
     void editCollectible(Vector2 pos, CollectibleType type) {        

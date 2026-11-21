@@ -1091,6 +1091,7 @@ void Game::render() {
             mp.disconnect();
             m_scene = std::make_shared<MenuScene>();
             m_paused = false;
+            m_level.clearLevel();
         }
     } else {
         if ((IsKeyDown(KEY_TAB) || m_end)) {
@@ -1163,21 +1164,25 @@ void Game::updateEditor() {
         bg.height = GetScreenHeight();
         bg.x = GetScreenWidth() - bg.width;
         bg.y = 0;
-        
-        Vector2 max = GetWorldToScreen2D(Vector2 { (float)(WORLD_SIZE ), WORLD_SIZE }, m_camera);
-        Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
+
+        Vector2 max = GetWorldToScreen2D(Vector2 { WORLD_SIZE + (bg.width / m_camera.zoom + 2), WORLD_SIZE }, m_camera);
+        Vector2 min = GetWorldToScreen2D(Vector2 { 0.f, 0.f }, m_camera);
+
+        if (max.x < width)  m_camera.offset.x = width - (max.x - width / 2.0f);
+        if (max.y < height) m_camera.offset.y = height - (max.y - height / 2.0f);
+        if (min.x > 0.0f)   m_camera.offset.x = width / 2.0f - min.x;
+        if (min.y > 0.0f)   m_camera.offset.y = height / 2.0f - min.y;
 
         Vector2 mousePos = GetMousePosition();
         Vector2 worldMouse = GetScreenToWorld2D(mousePos, m_camera);
+ 
+        static Vector2 prevMousePos = Vector2Zero();
+        auto wheel = GetMouseWheelMove();
+
         Vector2 worldMousei = { 0 };
         worldMousei.x = (int) worldMouse.x;
         worldMousei.y = (int) worldMouse.y;
 
-        if (max.x < width) m_camera.offset.x = width - (max.x - (float)width/2);
-        if (max.y < height) m_camera.offset.y = height - (max.y - (float)height/2);
-        if (min.x > 0) m_camera.offset.x = (float)width/2 - min.x;
-        if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
-        
         if (m_coll) {
             for (int i = 0; i < COLLECTIBLIES_COUNT - 1; i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
@@ -1194,11 +1199,11 @@ void Game::updateEditor() {
             }
         }
 
-        if (IsKeyDown(KEY_A) && m_cameraPos.x >= 12) {
+        if (IsKeyDown(KEY_A)) {
             m_cameraPos.x -= 0.2f;
         }
 
-        if (IsKeyDown(KEY_D) && m_cameraPos.x < WORLD_SIZE - 12) {
+        if (IsKeyDown(KEY_D)) {
             m_cameraPos.x += 0.2f;
         }
 
@@ -1206,39 +1211,142 @@ void Game::updateEditor() {
             m_cameraPos.y -= 0.2f;
         }
 
-        if (IsKeyDown(KEY_S) && m_cameraPos.y < WORLD_SIZE - 7) {
+        if (IsKeyDown(KEY_S)) {
             m_cameraPos.y += 0.2f;
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
+        static bool prevRight = false;
+        static bool prevLeft = false;
+
+        static int ticksLeft = 0;
+        static int ticksRight = 0;
+    
+        if (!IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && prevRight && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
             if (m_level.GetBlock(worldMousei.x, worldMousei.y)) {
+                addElement(StackElement {.removed = true, .type = (Block)m_level.GetBlock(worldMousei.x, worldMousei.y), .position = worldMousei});
                 m_level.setBlock(AIR, worldMousei.x, worldMousei.y);
-            } else if (m_level.containsCollectible({worldMousei.x, worldMousei.y})) {
-                m_level.removeCollectible({worldMousei.x, worldMousei.y});
+            } else if (m_level.containsCollectible(worldMousei)) {
+                addElement(StackElement {.removed = true, .type = m_level.getCollectible(worldMousei), .position = worldMousei});
+                m_level.removeCollectible(worldMousei);
             } else if (m_level.GetBackgroundBlock(worldMousei.x, worldMousei.y)) {
+                addElement(StackElement {.removed = true, .type = (Block)m_level.GetBackgroundBlock(worldMousei.x, worldMousei.y), .position = worldMousei, .background = true});
                 m_level.setBackgroundBlock(AIR, worldMousei.x, worldMousei.y);
-            } else if (m_level.containsSpawnpoint({worldMousei.x, worldMousei.y})) {
-                m_level.removeSpawnpoint({worldMousei.x, worldMousei.y});
+            } else if (m_level.containsSpawnpoint(worldMousei)) {
+                addElement(StackElement {.removed = true, .type = Block::BLOCKS_COUNT, .position = worldMousei});
+                m_level.removeSpawnpoint(worldMousei);
             }
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
+        if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT) && prevLeft && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
             if (m_spawn) {
                 m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
+                addElement(StackElement {.removed = false, .type = Block::BLOCKS_COUNT, .position = worldMousei});
             } else if (m_coll) {
                 m_level.addCollectible({{worldMousei.x, worldMousei.y}, (CollectibleType)(m_currentColl + 1)});
+                addElement(StackElement {.removed = false, .type = (CollectibleType)(m_currentColl + 1), .position = worldMousei});
             } else if (IsKeyDown(KEY_Q)) {
                 m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+                addElement(StackElement {.removed = false, .type = m_currentBlock, .position = worldMousei, .background = true});
             } else {
                 m_level.setBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+                addElement(StackElement {.removed = false, .type = m_currentBlock, .position = worldMousei, .background = false});
             }
         }
 
-        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !m_blocks) {
-            if (IsKeyDown(KEY_Q)) {
-                m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
-            } else {
-                m_level.setBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+        if (IsKeyDown(KEY_LEFT_SHIFT) && !m_blocks) {
+            if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                if (IsKeyDown(KEY_Q)) {
+                    m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+                    addElement(StackElement {.removed = false, .type = m_currentBlock, .position = worldMousei, .background = true});
+                } else {
+                    m_level.setBlock(m_currentBlock, worldMousei.x, worldMousei.y);
+                    addElement(StackElement {.removed = false, .type = m_currentBlock, .position = worldMousei, .background = false});
+                }
+            }
+            
+            if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                addElement(StackElement {.removed = true, .type = (Block)m_level.GetBlock(worldMousei.x, worldMousei.y), .position = worldMousei});
+                m_level.setBlock(Block::AIR, worldMousei.x, worldMousei.y);
+            }
+        }
+        
+        if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !IsKeyDown(KEY_LEFT_SHIFT)) {
+            if (!Vector2Equals(prevMousePos, mousePos)) {
+                Vector2 dist = Vector2Subtract(prevMousePos, mousePos);
+
+                m_cameraPos.x += dist.x / 15;
+                m_cameraPos.y += dist.y / 15;
+            }
+        }
+
+        if (wheel != 0.f) {
+            auto newZoom = m_camera.zoom + (wheel > 0.f ? 1 : -1) * 2.5f;
+
+            m_camera.zoom = std::clamp(newZoom, 10.f, 100.f);
+        }
+
+        if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z) && m_stack.size() > 0) {
+            auto topElement = m_stack.front();
+            auto type = topElement.type;
+            
+            if (std::holds_alternative<CollectibleType>(type)) {
+                if (topElement.removed) {
+                    m_level.addCollectible(Collectible {
+                        .pos = topElement.position,
+                        .type = std::get<CollectibleType>(topElement.type)
+                    });
+                } else {
+                    m_level.removeCollectible(topElement.position);
+                }
+            } else if (std::holds_alternative<Block>(type)) {
+                if (topElement.removed) {
+                    if (topElement.background) {
+                        m_level.setBackgroundBlock(std::get<Block>(topElement.type), topElement.position.x, topElement.position.y);
+                    } else {
+                        m_level.setBlock(std::get<Block>(topElement.type), topElement.position.x, topElement.position.y);
+                    }
+                } else {
+                    if (topElement.background) {
+                        m_level.setBackgroundBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                    } else {
+                        m_level.setBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                    }
+                }
+            }
+
+            m_stack.pop_front();
+        }
+
+        m_cameraPos.x = std::clamp(m_cameraPos.x, (float) bg.width / m_camera.zoom + 2, (float) (WORLD_SIZE - bg.width / m_camera.zoom - 2));
+        m_cameraPos.y = std::clamp(m_cameraPos.y, 0.f, (float) WORLD_SIZE);
+
+        prevMousePos = mousePos;
+
+        if (ticksRight <= 0) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
+                ticksRight = 7;
+                prevRight = true;
+            }
+        } else {
+            ticksRight--;
+
+            if (ticksRight <= 0|| !IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) {
+                prevRight = false;
+                ticksRight = 0;
+            }
+        }
+
+        if (ticksLeft <= 0) {
+            if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                ticksLeft = 7;
+                prevLeft = true;
+            }
+        } else {
+            ticksLeft--;
+
+            if (ticksLeft <= 0 || !IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+                prevLeft = false;
+                ticksLeft = 0;
             }
         }
     }
@@ -1246,6 +1354,7 @@ void Game::updateEditor() {
 
 void Game::renderEditor() {
     auto mousePos = GetMousePosition();
+
     Vector2 worldMouse = GetScreenToWorld2D(mousePos, m_camera);
     Vector2 worldMousei = { 0 };
     worldMousei.x = (int) worldMouse.x;
@@ -1299,7 +1408,7 @@ void Game::renderEditor() {
 
         float padding = 35.f;
 
-        const char* text = m_coll ? "Current collectibles:" : "Current Block: ";
+        const char* text = m_coll ? "Current collectibles:" : "Current Block:";
         Vector2 blockTextSize = MeasureTextEx(GetFontDefault(), text, fontSize, fontSize / 10);
         
         float textX = bg.x + (bg.width - blockTextSize.x) / 2;
@@ -1308,7 +1417,6 @@ void Game::renderEditor() {
         DrawText(text, textX, textY, fontSize, WHITE);
         
         if (m_coll && m_currentColl > 0) {
-            // NOTE: Repeat code with rm
             Sprite sprite = Sprite::SHOTGUN_SPRITE;
             switch (m_currentColl) {
                 case SHOTGUN_COLLECT: {
@@ -1415,9 +1523,9 @@ void Game::renderEditor() {
             DrawRectangle(bgX, bgY, bgWidth, bgHeight, {0, 0, 0, 100});
 
             for (int i = 0; i < BLOCKS_COUNT; i++) {
-                int size = 48;
-                int x = (int)(bgX + padding + (i % bgWidth) * size + padding * (i % bgWidth));
-                int y = (int)(bgY + padding + i * size / bgHeight);
+                float size = 48.f;
+                float x = (int)(bgX + padding + (i % bgWidth) * size + padding * (i % bgWidth));
+                float y = (int)(bgY + padding + i * size / bgHeight);
                 Rectangle block = {x, y, size, size};
 
                 if (i == BLOCKS_COUNT - 1) {
