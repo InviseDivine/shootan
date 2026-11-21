@@ -144,9 +144,10 @@ private:
     bool m_spawn;
     bool m_testmode;
 
-    CollectibleType m_currentColl;
+    CollectibleType m_currentColl = CollectibleType::SHOTGUN_COLLECT;
     bool m_coll;
 
+    bool m_blocks;
     // Multiplayer
     uint32_t m_myId;
 

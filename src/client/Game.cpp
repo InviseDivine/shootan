@@ -1164,7 +1164,7 @@ void Game::updateEditor() {
         bg.x = GetScreenWidth() - bg.width;
         bg.y = 0;
         
-        Vector2 max = GetWorldToScreen2D(Vector2 { (float)(WORLD_SIZE + width * 4), WORLD_SIZE }, m_camera);
+        Vector2 max = GetWorldToScreen2D(Vector2 { (float)(WORLD_SIZE ), WORLD_SIZE }, m_camera);
         Vector2 min = GetWorldToScreen2D(Vector2 { 0, 0 }, m_camera);
 
         Vector2 mousePos = GetMousePosition();
@@ -1179,15 +1179,17 @@ void Game::updateEditor() {
         if (min.y > 0) m_camera.offset.y = (float)height/2 - min.y;
         
         if (m_coll) {
-            for (int i = 0; i < COLLECTIBLIES_COUNT; i++) {
+            for (int i = 0; i < COLLECTIBLIES_COUNT - 1; i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
-                    m_currentColl = (CollectibleType) i; 
+                    m_currentColl = (CollectibleType) (i + 1);
+                    m_spawn = false;
                 }
             }
         } else {
             for (int i = 0; i < BLOCKS_COUNT; i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
                     m_currentBlock = (Block) i; 
+                    m_spawn = false;
                 }
             }
         }
@@ -1208,7 +1210,7 @@ void Game::updateEditor() {
             m_cameraPos.y += 0.2f;
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !CheckCollisionPointRec(mousePos, bg)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT) && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
             if (m_level.GetBlock(worldMousei.x, worldMousei.y)) {
                 m_level.setBlock(AIR, worldMousei.x, worldMousei.y);
             } else if (m_level.containsCollectible({worldMousei.x, worldMousei.y})) {
@@ -1220,7 +1222,7 @@ void Game::updateEditor() {
             }
         }
 
-        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !CheckCollisionPointRec(mousePos, bg)) {
+        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT) && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
             if (m_spawn) {
                 m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
             } else if (m_coll) {
@@ -1232,7 +1234,7 @@ void Game::updateEditor() {
             }
         }
 
-        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+        if (IsKeyDown(KEY_LEFT_SHIFT) && IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !m_blocks) {
             if (IsKeyDown(KEY_Q)) {
                 m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
             } else {
@@ -1281,8 +1283,10 @@ void Game::renderEditor() {
     // GUI
     // TODO: Rewrite
     if (!m_testmode) {
+        const float fontSize = 20.f;
+
         Rectangle bg = { 0 };
-        bg.width = 200.f;
+        bg.width = 300.f;
         bg.height = GetScreenHeight();
         bg.x = GetScreenWidth() - bg.width;
         bg.y = 0;
@@ -1295,97 +1299,155 @@ void Game::renderEditor() {
 
         float padding = 35.f;
 
-        Rectangle saveButton = { 0 };
-        saveButton.width = bg.width - padding;
-        saveButton.height = padding;
-        saveButton.x = bg.x + (padding / 2);
-        saveButton.y = padding;
+        const char* text = m_coll ? "Current collectibles:" : "Current Block: ";
+        Vector2 blockTextSize = MeasureTextEx(GetFontDefault(), text, fontSize, fontSize / 10);
+        
+        float textX = bg.x + (bg.width - blockTextSize.x) / 2;
+        float textY = padding;
 
-        if (GuiButton(saveButton, "Save")) {
-            m_level.write();
-        }
+        DrawText(text, textX, textY, fontSize, WHITE);
+        
+        if (m_coll && m_currentColl > 0) {
+            // NOTE: Repeat code with rm
+            Sprite sprite = Sprite::SHOTGUN_SPRITE;
+            switch (m_currentColl) {
+                case SHOTGUN_COLLECT: {
+                    sprite = SHOTGUN_SPRITE;
+                    break;
+                }
+                case SNIPER_RIFLE: {
+                    sprite = SNIPER_RIFLE_SPRITE;
+                    break;
+                }
 
-        Rectangle collButton = { 0 };
-        collButton.width = bg.width - padding;
-        collButton.height = padding;
-        collButton.x = bg.x + (padding / 2);
-        collButton.y = padding * 2 + 10;
+                case GRENADE_COLLECT: {
+                    sprite = GRENADE_SPRITE;
+                    break;
+                }
 
-        if (GuiButton(collButton, "Collectibles")) {
-            m_coll ^= 1;
-            m_spawn = false;
-        }
+                case MEDKIT: {
+                    sprite = MEDKIT_SPRITE;
+                    break;
+                }
+            }
 
-        Rectangle respawnButton = { 0 };
-        respawnButton.width = bg.width - padding;
-        respawnButton.height = padding;
-        respawnButton.x = bg.x + (padding / 2);
-        respawnButton.y = padding * 3 + 20;
+            auto src = rm.getSpriteSize(sprite);
+            Vector2 size = {src.x * 4, src.y * 4};
 
-        if (GuiButton(respawnButton, "Respawn")) {
-            m_spawn ^= 1;
-            m_coll = false;
-        }
+            Vector2 pos = {bg.x + (bg.width - size.x) / 2, padding + blockTextSize.y * 2};
 
-        auto fontSize = 20;
-        auto text = "Current block:";
-        auto blockTextY = respawnButton.y + padding + fontSize;
-
-        DrawText(text, bg.x + fontSize, blockTextY, fontSize, WHITE);
-
-        auto pad = m_currentBlock ? 48.f : 0;
-
-        float modeTextY = blockTextY + padding + fontSize + pad;
-
-        auto currMode = m_coll ? "Collectibles" : m_spawn ? "Spawnpoints" : "Blocks";
-
-        DrawText(TextFormat("Current mode:\n%s", currMode), bg.x + fontSize, modeTextY, fontSize, WHITE);
-
-        if (m_currentBlock == 0) {
-            DrawText("Air", bg.x + fontSize, blockTextY + fontSize, fontSize, WHITE);
+            rm.drawSpriteFromSheet(sprite, {pos.x, pos.y, size.x, size.y});
         } else {
-            rm.drawBlock((Block)(m_currentBlock - 1), {bg.x + 48, blockTextY + padding, 48.f, 48.f}, WHITE);
+            if (m_currentBlock > 0) {
+                Rectangle block = {
+                    bg.x + (bg.width - 48.f) / 2,
+                    textY + blockTextSize.y + padding / 2,
+                    48.f,
+                    48.f
+                };
+
+                if (m_currentBlock == BLOCKS_COUNT) {
+                    DrawRectangleLinesEx(block, 5.f, MAROON);
+                } else {
+                    rm.drawBlock((Block)((int) (m_currentBlock) - 1), block);
+                }
+            }
+        }
+        
+
+        constexpr std::size_t buttonsCount = 4;
+        const Vector2 buttonSize = {bg.width - padding, padding};
+        const std::array<const char*, buttonsCount> buttonsName = {
+            "Play",
+            "Save",
+            "Collectibles",
+            "Blocks"
+        };
+
+        for (int i = 0; i < buttonsCount; i++) {
+            Rectangle buttonRec = {
+                bg.x + (bg.width - buttonSize.x) / 2,
+                padding * 4 + i * buttonSize.y + (padding / 2) * i,
+                buttonSize.x,
+                buttonSize.y
+            };
+
+            if (GuiButton(buttonRec, buttonsName.at(i))) {
+                switch (i) {
+                    // PLAY
+                    case 0: {
+                        if (m_level.getSpawnpoints().size() > 0) {
+                            m_testmode = true;
+
+                            m_player.x = m_level.getSpawnpoints().at(0).x;
+                            m_player.y = m_level.getSpawnpoints().at(0).y;
+                        }    
+                        break;
+                    }
+                    // SAVE
+                    case 1: {
+                        m_level.write();
+                        break;
+                    }
+                    // COLLECTIBLES
+                    case 2: {
+                        m_coll ^= 1;
+                        m_spawn = false;
+                        break;
+                    }
+                    // BLOCKS
+                    case 3: {
+                        m_blocks ^= 1;
+                        break;
+                    }
+
+                    default: break;
+                }
+            }    
         }
 
-        Rectangle testmodeButton = { 0 };
-        testmodeButton.width = bg.width - padding;
-        testmodeButton.height = padding;
-        testmodeButton.x = bg.x + (padding / 2);
-        testmodeButton.y = padding * 8 + 20;
+        if (m_blocks) {
+            const int bgX = 75;
+            const int bgY = 75;
+            const int bgWidth = GetScreenWidth() - 75 * 2;
+            const int bgHeight = GetScreenHeight() - 75 * 2;
 
-        if (GuiButton(testmodeButton, "Play") && m_level.getSpawnpoints().size() > 0) {
-            m_testmode = true;
+            DrawRectangle(bgX, bgY, bgWidth, bgHeight, {0, 0, 0, 100});
 
-            m_player.x = m_level.getSpawnpoints().at(0).x;
-            m_player.y = m_level.getSpawnpoints().at(0).y;
-        }
+            for (int i = 0; i < BLOCKS_COUNT; i++) {
+                int size = 48;
+                int x = (int)(bgX + padding + (i % bgWidth) * size + padding * (i % bgWidth));
+                int y = (int)(bgY + padding + i * size / bgHeight);
+                Rectangle block = {x, y, size, size};
 
-        Rectangle blocksButton = { 0 };
-        blocksButton.width = bg.width - padding;
-        blocksButton.height = padding;
-        blocksButton.x = bg.x + (padding / 2);
-        blocksButton.y = padding * 9 + 20;
+                if (i == BLOCKS_COUNT - 1) {
+                    DrawRectangleLinesEx(block, 5.f, MAROON);
+                    
+                    if (CheckCollisionPointRec(mousePos, block)) {
+                        DrawRectangleRec(block, {255, 255, 255, 50});
 
-        if (GuiButton(blocksButton, "Blocks")) {
-            float x = 75;
-            float y = 75;
+                        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                            m_currentBlock = BLOCKS_COUNT;
+                            m_spawn = true;
+                            m_coll = false;
+                            m_blocks = false;
+                        }
+                    }                    
+                } else {
+                    rm.drawBlock((Block)i, {x, y, size, size});
 
-            float width = GetScreenWidth() - x * 2;
-            float height = GetScreenHeight() - y * 2;
-            
-            Rectangle bg = {x, y, width, height};
+                    if (CheckCollisionPointRec(mousePos, block)) {
+                        DrawRectangleRec(block, {255, 255, 255, 50});
 
-            DrawRectangleRec(bg, {0, 0, 0, 180});
-            auto count = 0;
-
-            DrawText("Score", width - x - 10, y + 10, 40, WHITE);
-            
-            DrawText(TextFormat("%s - %d", m_player.nickname.c_str(), m_player.score), x + 40, y + 40, 20, WHITE);
-
-            for (auto& [_, client] : m_players) {
-                DrawText(TextFormat("%s - %d", client.nickname.c_str(), client.score), x + 40, y + 20 * count + 60, 20, WHITE);
-                count++;
-            } 
+                        if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+                            m_currentBlock = (Block) (i + 1);
+                            m_spawn = false;
+                            m_coll = false;
+                            m_blocks = false;
+                        }
+                    }
+                }                
+            }
         }
     } else {
         DrawText("Press Q to return in editor", 0, 0, 20, WHITE);

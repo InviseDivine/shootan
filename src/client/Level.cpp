@@ -10,7 +10,6 @@
 
 #define ONSCREEN(maxX, maxY, minX, minY, x, y) y >= minY && y <= maxY && x >= minX && x <= maxX
 
-
 void Level::write() {
     std::ofstream world("world.dat", std::ios::binary);
 
