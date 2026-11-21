@@ -1215,13 +1215,15 @@ void Game::updateEditor() {
             m_cameraPos.y += 0.2f;
         }
 
-        static bool prevRight = false;
-        static bool prevLeft = false;
+        static bool prevRight  = false;
+        static bool prevLeft   = false;
 
-        static int ticksLeft = 0;
-        static int ticksRight = 0;
-    
-        if (!IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && prevRight && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
+        static int ticksLeft   = 0;
+        static int ticksRight  = 0;
+        
+        static int ticksBlocks = 0;
+
+        if (!IsMouseButtonDown(MOUSE_BUTTON_RIGHT) && prevRight && !CheckCollisionPointRec(mousePos, bg) && ticksBlocks == 0) {
             if (m_level.GetBlock(worldMousei.x, worldMousei.y)) {
                 addElement(StackElement {.removed = true, .type = (Block)m_level.GetBlock(worldMousei.x, worldMousei.y), .position = worldMousei});
                 m_level.setBlock(AIR, worldMousei.x, worldMousei.y);
@@ -1237,7 +1239,7 @@ void Game::updateEditor() {
             }
         }
 
-        if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT) && prevLeft && !CheckCollisionPointRec(mousePos, bg) && !m_blocks) {
+        if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT) && prevLeft && !CheckCollisionPointRec(mousePos, bg) && ticksBlocks == 0) {
             if (m_spawn) {
                 m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
                 addElement(StackElement {.removed = false, .type = Block::BLOCKS_COUNT, .position = worldMousei});
@@ -1272,10 +1274,9 @@ void Game::updateEditor() {
         
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT) && !IsKeyDown(KEY_LEFT_SHIFT)) {
             if (!Vector2Equals(prevMousePos, mousePos)) {
-                Vector2 dist = Vector2Subtract(prevMousePos, mousePos);
-
-                m_cameraPos.x += dist.x / 15;
-                m_cameraPos.y += dist.y / 15;
+                Vector2 delta = GetMouseDelta();
+                delta = Vector2Scale(delta, -1.0f/m_camera.zoom);
+                m_cameraPos = Vector2Add(m_cameraPos, delta);
             }
         }
 
@@ -1299,17 +1300,27 @@ void Game::updateEditor() {
                     m_level.removeCollectible(topElement.position);
                 }
             } else if (std::holds_alternative<Block>(type)) {
+                auto block = std::get<Block>(topElement.type);
+
                 if (topElement.removed) {
-                    if (topElement.background) {
-                        m_level.setBackgroundBlock(std::get<Block>(topElement.type), topElement.position.x, topElement.position.y);
+                    if (block == BLOCKS_COUNT) {
+                        m_level.setSpawnpoint(topElement.position);
                     } else {
-                        m_level.setBlock(std::get<Block>(topElement.type), topElement.position.x, topElement.position.y);
+                        if (topElement.background) {
+                            m_level.setBackgroundBlock(block, topElement.position.x, topElement.position.y);
+                        } else {
+                            m_level.setBlock(block, topElement.position.x, topElement.position.y);
+                        }
                     }
                 } else {
-                    if (topElement.background) {
-                        m_level.setBackgroundBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                    if (block == BLOCKS_COUNT) {
+                        m_level.removeSpawnpoint(topElement.position);
                     } else {
-                        m_level.setBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                        if (topElement.background) {
+                            m_level.setBackgroundBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                        } else {
+                            m_level.setBlock(Block::AIR, topElement.position.x, topElement.position.y);
+                        }
                     }
                 }
             }
@@ -1349,6 +1360,14 @@ void Game::updateEditor() {
                 ticksLeft = 0;
             }
         }
+
+        if (m_blocks) {
+            ticksBlocks = 6;
+        } else if (ticksBlocks > 0) {
+            ticksBlocks--;
+        }
+
+        printf("%d \n", ticksBlocks);
     }
 }
 
