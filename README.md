@@ -9,12 +9,13 @@ Just a simple 2D shooter made with Raylib and ENet
 - Chat
 
 ## TODO
-- [ ] Improve editor
+- [X] Improve editor
 - [ ] Zombie mode
 - [ ] Melee weapons
 - [ ] Sounds
 - [ ] Effects for grenade
 - [ ] Fix gun angle
+- [ ] Tutorial level
 
 ## Screenshots
 <p align="center">

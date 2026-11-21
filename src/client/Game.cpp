@@ -1191,10 +1191,15 @@ void Game::updateEditor() {
                 }
             }
         } else {
-            for (int i = 0; i < BLOCKS_COUNT; i++) {
+            for (int i = 1; i < BLOCKS_COUNT; i++) {
                 if (IsKeyPressed(KEY_ONE + i)) {
+                    if (i == BLOCKS_COUNT) {
+                        m_spawn = true;
+                    } else {
+                        m_spawn = false;
+                    }
+
                     m_currentBlock = (Block) i; 
-                    m_spawn = false;
                 }
             }
         }
@@ -1244,8 +1249,8 @@ void Game::updateEditor() {
                 m_level.setSpawnpoint({worldMousei.x, worldMousei.y});
                 addElement(StackElement {.removed = false, .type = Block::BLOCKS_COUNT, .position = worldMousei});
             } else if (m_coll) {
-                m_level.addCollectible({{worldMousei.x, worldMousei.y}, (CollectibleType)(m_currentColl + 1)});
-                addElement(StackElement {.removed = false, .type = (CollectibleType)(m_currentColl + 1), .position = worldMousei});
+                m_level.addCollectible({{worldMousei.x, worldMousei.y}, (CollectibleType)m_currentColl});
+                addElement(StackElement {.removed = false, .type = (CollectibleType)m_currentColl, .position = worldMousei});
             } else if (IsKeyDown(KEY_Q)) {
                 m_level.setBackgroundBlock(m_currentBlock, worldMousei.x, worldMousei.y);
                 addElement(StackElement {.removed = false, .type = m_currentBlock, .position = worldMousei, .background = true});
@@ -1286,6 +1291,7 @@ void Game::updateEditor() {
             m_camera.zoom = std::clamp(newZoom, 10.f, 100.f);
         }
 
+        // TODO: Handle for IsKeyDown
         if (IsKeyDown(KEY_LEFT_CONTROL) && IsKeyPressed(KEY_Z) && m_stack.size() > 0) {
             auto topElement = m_stack.front();
             auto type = topElement.type;
@@ -1366,8 +1372,6 @@ void Game::updateEditor() {
         } else if (ticksBlocks > 0) {
             ticksBlocks--;
         }
-
-        printf("%d \n", ticksBlocks);
     }
 }
 
