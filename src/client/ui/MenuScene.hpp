@@ -11,7 +11,7 @@ public:
     void buttonClicked(Gui::Button* button);
 
     // TODO: Implement
-    // void onScreenSizeChange() override; 
+    void onScreenSizeChange() override; 
 protected:
     Gui::Textbox m_username;
     Gui::Textbox m_ip;

@@ -370,6 +370,10 @@ void Game::init() {
         }
 
         if (m_scene != nullptr) {
+            if (IsWindowResized()) {
+                m_scene->onScreenSizeChange();
+            }
+
             m_scene->update();
         } else {
             if (m_editor) {
@@ -378,7 +382,7 @@ void Game::init() {
                 update();
             }
         }
-
+        
         BeginDrawing();
             auto& rm = ResourceManager::get();
 
@@ -1486,13 +1490,14 @@ void Game::renderEditor() {
         }
         
 
-        constexpr std::size_t buttonsCount = 4;
+        constexpr std::size_t buttonsCount = 5;
         const Vector2 buttonSize = {bg.width - padding, padding};
         const std::array<const char*, buttonsCount> buttonsName = {
             "Play",
             "Save",
             "Collectibles",
-            "Blocks"
+            "Blocks",
+            "Exit"
         };
 
         for (int i = 0; i < buttonsCount; i++) {
@@ -1531,7 +1536,13 @@ void Game::renderEditor() {
                         m_blocks ^= 1;
                         break;
                     }
+                    // Exit
+                    case 4: {
+                        m_editor = false;
+                        m_scene = std::make_shared<MenuScene>();
 
+                        break;
+                    }
                     default: break;
                 }
             }    

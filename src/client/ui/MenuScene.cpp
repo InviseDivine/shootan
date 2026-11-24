@@ -132,3 +132,33 @@ void MenuScene::buttonClicked(Gui::Button* button) {
         return;
     }  
 }
+
+void MenuScene::onScreenSizeChange() {
+    auto& game = Game::get();
+
+    Rectangle bounds = {(GetScreenWidth() - 200.f) / 2.f, (GetScreenHeight() - 22.f) / 2.f, 200.f, 22.f};
+    m_username.setBounds(bounds);
+
+    // TODO: Label for hats choose
+    Rectangle image = {(GetScreenWidth() - 48.f) / 2.f, (GetScreenHeight() - 48.f) / 2.f - 40.f - 48.f, 48.f, 48.f};
+    m_player.setBounds(image);
+    
+    Rectangle arrow = {image.x + image.width + 24.f, image.y + 12.f, 24.f, 24.f};
+    m_arrowRight.setBounds(arrow);
+
+    arrow.x -= image.width + 24.f * 3;
+    m_arrowLeft.setBounds(arrow);
+
+    image.y -= 48.f;
+
+    setHatBounds(game.getPlayer().hat);
+
+    bounds.y += bounds.height + 10.f;
+    m_ip.setBounds(bounds);
+
+    bounds.y += bounds.height + 10.f;
+    m_play.setBounds(bounds);
+
+    bounds.y += bounds.height + 10.f;
+    m_editor.setBounds(bounds);
+}

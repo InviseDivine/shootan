@@ -62,6 +62,7 @@ struct Weapon {
     float reloadTime;
 };
 
+// TODO: Replace with enum class
 enum Block : uint8_t {
     AIR = 0,
     GRASS,
@@ -83,7 +84,6 @@ enum GrenadeType : uint8_t {
 
     GRENADES_COUNT
 };
-
 
 struct Grenade {    
     Vector2 velocity;
